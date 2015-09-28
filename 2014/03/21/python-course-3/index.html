@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html" charset="UTF-8" >
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+  <title>《Python核心編程》筆記（三）</title>
+  <meta name="description" content="" />
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="MobileOptimized" content="320" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="stylesheet" type="text/css" href="/css/screen.css" />
+  <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Noto+Serif:400,700,400italic|Open+Sans:700,400" />
+
+  <meta name="generator" content="Justuno技术笔记">
+
+  <a href="https://github.com/justuno"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://github-camo.global.ssl.fastly.net/38ef81f8aca64bb9a64448d0d70f1308ef5341ab/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png"></a>
+  
+  
+  
+  
+
+  
+</head>
+
+
+<body class="post-template">
+
+  
+
+<main class="content" role="main">
+  <article class="post">
+    <header class="post-header">
+      <a class="blog-logo" href="/">
+        
+        <img src="//blog.ghost.org/content/images/2013/Nov/bloglogo_1-1.png" alt="Blog Logo"/></a>
+        
+      </a>
+    </header>
+    <span class="post-meta">
+      <time datetime="2014-03-21T02:17:11.000Z" itemprop="datePublished">2014-03-21</time>
+       on <a href='/tags/Python/' style='margin:0 5px;'>Python</a><a href='/tags/教程/' style='margin:0 5px;'>教程</a>
+    </span>
+    <h1 class="post-title">《Python核心編程》筆記（三）</h1>
+    <section class="post-content">
+      <p><br><br>今次的內容主要為format方法、函數、魔法參數、偏函數應用、面向對象編程、迭代器、新式類的高級特性和compile()等。原本預定要將生成器(yield)這部分的內容一併寫入，不過因為這部分內容難度較大，我覺得可能單獨寫成一篇文章比較好。另外，在今次的博文中，面向對象編程中的關於python的多重繼承機制，以及用戶如何自定義迭代器這兩個部分我會重點談一下。</p>
+<p>今次博文寫完之後，基本上我的關於《Python核心編程》的筆記就到此結束了，之後關於python的技術心得文章應該會以專題的形式來進行撰寫，即一篇博文重點談一個問題，這樣檢索起來也比較方便。當然了，如果日後再遇到一些值得記錄下來的比較雜亂的小知識，我也會酌情考慮是否要將其作為《Python核心編程》筆記（四）來進行撰寫，畢竟python一些比較細節的語言特性還是值得我們注意的。</p>
+<p><strong>注：本書為第二版，其中python的代碼主要為2.x版本，使用python3.x的朋友請留意。</strong><br><a id="more"></a></p>
+<hr>
+<h2 id="format方法">format方法</h2><p>format方法主要用於構造字符串，個人認為這個方法在需要格式化輸出一些信息的時候用的比較多。這部分內容並不難理解，直接上代碼即可明白。</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">age = <span class="number">25</span></span><br><span class="line">name = <span class="string">'Swaroop'</span></span><br><span class="line">print(<span class="string">'&#123;0&#125; is &#123;1&#125; years old'</span>.format(name,age))</span><br><span class="line">print(<span class="string">'Why is &#123;0&#125; playing with that python?'</span>.format(name))</span><br></pre></td></tr></table></figure>
+<p>輸出：<br><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Swaroop is 25 years old</span><br><span class="line">Why is Swaroop playing with that python?</span><br></pre></td></tr></table></figure></p>
+<p>你可以注意到變量值到字符串的轉變是由format方法自動完成的，這就方便了我們輸出字符串而不用去糾結那些%s,%d之類的東西。大括號中的數字表示format方法中的參數的位置，0表示第一個參數，1表示第二個參數，以此類推，然後你在前面的字符串中指定是要輸出哪個變量的值即可。當然了，你也可以將大括號中的數字省略，這樣就意味著format會按照其參數的順序來為字符串中的大括號進行依次賦值的工作。</p>
+<p>format方法的威力還不只如此，請閱讀下面的例子：</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="prompt">&gt;&gt;&gt; </span><span class="string">'&#123;0:.9&#125;'</span>.format(<span class="number">1</span>/<span class="number">3</span>)</span><br><span class="line"><span class="number">0.333333333</span></span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span><span class="string">'&#123;0:_^11&#125;'</span>.format(<span class="string">'hello'</span>)</span><br><span class="line"><span class="string">'___hello___'</span>  <span class="comment">#用下劃線將字符串'hello'填充至11個字符。</span></span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span><span class="string">'&#123;name&#125; wrote &#123;book&#125;'</span>.format(name=<span class="string">'Swaroop'</span>, book=<span class="string">'A Byte of Python'</span>)</span><br><span class="line"><span class="string">'Swaroop wrote A Byte of Python'</span></span><br></pre></td></tr></table></figure>
+<hr>
+<h2 id="函數">函數</h2><p>python的函數”看上去”可以返回多個對象，如：</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">bar</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">return</span> <span class="string">'abc'</span>, [<span class="number">42</span>,<span class="string">'python'</span>], <span class="string">"Guido"</span></span><br></pre></td></tr></table></figure>
+<p>這麼寫是合法的，不過事實上它返回的是<strong>一個元組</strong>，而並不是真正的多個對象。這裡只是省去了小括號而已。</p>
+<p><strong>函數屬性</strong></p>
+<p>函數是可以擁有屬性的：</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">bar</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line">bar.__doc__ == <span class="string">'fuck'</span></span><br><span class="line">bar.version = <span class="number">0.1</span></span><br></pre></td></tr></table></figure>
+<p>不過我們不能在函數定義的內部訪問這些屬性，因為在函數中沒有self這種東西，所以不能訪問的原因是因為函數體尚未創建。</p>
+<hr>
+<h2 id="魔法參數">魔法參數</h2><p>這個特性是我目前最喜歡的一個python的語言特性，非常優雅，非常美妙，令人愛不釋手。這個特性主要用於需要定義能夠獲取任意數量個參數的函數的場合。舉例如下：</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">total</span><span class="params">(initial=<span class="number">5</span>, *numbers, **keywords)</span>:</span></span><br><span class="line">    count = initial</span><br><span class="line">    <span class="keyword">for</span> number <span class="keyword">in</span> numbers:</span><br><span class="line">        count += number</span><br><span class="line">    <span class="keyword">for</span> key <span class="keyword">in</span> keywords:</span><br><span class="line">        count += keywords[key]</span><br><span class="line">    <span class="keyword">return</span> count</span><br><span class="line">　　</span><br><span class="line">print(total(<span class="number">10</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, vegetables=<span class="number">50</span>, fruits=<span class="number">100</span>))</span><br></pre></td></tr></table></figure>
+<p>輸出的結果為166，不過166是怎麼計算出來的呢？請聽我娓娓道來：</p>
+<p>當我們定義了一個帶一個星號的參數的時候，比如說這裡的numbers，就表示從該參數所在的位置開始到最後所有的除去關鍵字參數以外的參數會全部被收集到一個叫做numbers的列表中。在本例中，initial的值由默認的5變為了10，然後這之後的1，2，3全部被放進了名為numbers的列表中。同樣，當我們定義了一個帶兩個星號的參數的時候，比如說這裡的keywords，則表示從該參數所在的位置開始到最後的所有的關鍵字參數都會被收集到名為keywords的字典中。那麼在本例中，vegetables=50, fruits=100就被放進了這個字典中，其中vegetables和fruits為該字典中的兩個鍵，50和100為分別為它們的值。</p>
+<p><strong>需要特別注意的是，有默認值的參數必須處在沒有默認值參數的後面，否則解釋器會報錯。</strong></p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="prompt">&gt;&gt;&gt; </span><span class="function"><span class="keyword">def</span> <span class="title">func</span><span class="params">(b=<span class="number">5</span>,a)</span>:</span></span><br><span class="line"><span class="prompt">... </span>    <span class="keyword">pass</span></span><br><span class="line">...</span><br><span class="line">  File <span class="string">"&lt;stdin&gt;"</span>, line <span class="number">1</span></span><br><span class="line">SyntaxError: non-default argument follows default argument</span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span><span class="function"><span class="keyword">def</span> <span class="title">func</span><span class="params">(a,b=<span class="number">5</span>)</span>:</span></span><br><span class="line"><span class="prompt">... </span>    <span class="keyword">pass</span></span><br><span class="line">...</span><br><span class="line">&gt;&gt;&gt;</span><br></pre></td></tr></table></figure>
+<p><strong>Keyword-only 參數</strong></p>
+<p>Keyword-only參數在我的理解中就是你在調用函數的時候，必須實名給出其值的參數。舉例如下：</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">total</span><span class="params">(initial=<span class="number">5</span>, *numbers, vegetables)</span>:</span></span><br><span class="line">    count = initial</span><br><span class="line">    <span class="keyword">for</span> number <span class="keyword">in</span> numbers:</span><br><span class="line">        count += number</span><br><span class="line">    count += vegetables</span><br><span class="line">    <span class="keyword">return</span> count</span><br><span class="line"></span><br><span class="line">print(total(<span class="number">10</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, vegetables=<span class="number">50</span>))</span><br><span class="line">print(total(<span class="number">10</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>,))</span><br><span class="line"><span class="comment"># Raises error because we have not supplied a default argument value for 'vegetables'</span></span><br></pre></td></tr></table></figure>
+<p>輸出：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$ python keyword_only.py</span><br><span class="line"><span class="number">66</span></span><br><span class="line">Traceback (most recent call last):</span><br><span class="line">File <span class="string">"test.py"</span>, line <span class="number">12</span>, <span class="keyword">in</span> &lt;module&gt;</span><br><span class="line">print(total(<span class="number">10</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>))</span><br><span class="line">TypeError: total() needs keyword-only argument vegetables</span><br></pre></td></tr></table></figure></p>
+<p>在帶星號的參數後面聲明參數，解釋器會認為其為Keyword-only參數。那麼如果該參數沒有默認值，而且你在調用的時候也沒有給他賦值，那麼解釋器就會報錯。如果你想使用Keyword-only參數，但又不需要帶有星號的參數，可以簡單地用一個星號來代替帶星號的參數，如：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">total</span><span class="params">(initial=<span class="number">5</span>, *, vegetables)</span>:</span></span><br><span class="line">    <span class="keyword">pass</span></span><br></pre></td></tr></table></figure>
+<p>需要特別注意的是，哪怕你在調用的時候，參數的數目已經與函數的定義的參數數目相同，如果你沒有指明Keyword-only參數和其值，那麼一樣會報錯，也就是說：以上面那個函數為例，其參數數目為兩個，如果你這樣調用total(1,2)還是會報錯，解釋器會提醒你你給多了參數，而不會將這個2認為是Keyword-only參數的值。</p>
+<p><strong>調用帶有可變長參數對象的函數</strong></p>
+<p>這同樣是一個需要留意的特性，請注意如下代碼：</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">aTuple = (<span class="number">6</span>,<span class="number">7</span>,<span class="number">8</span>)</span><br><span class="line">aDict = &#123;<span class="string">'z'</span>:<span class="number">9</span>&#125;</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">newfoo</span><span class="params">(arg1, arg2, *nkw, **kw)</span>:</span></span><br><span class="line">    <span class="keyword">pass</span>  <span class="comment">#這裡略去不寫，該函數的功能就是簡單地將參數值按照不同類別來分別輸出。</span></span><br><span class="line">newfoo(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, x = <span class="number">4</span>, y = <span class="number">5</span>, *aTuple, **aDict)</span><br></pre></td></tr></table></figure>
+<p>我們按照上述方法來調用該函數，其結果為：arg1 = 1，arg2 = 2，nkw列表中的值分別為：3，6，7，8，而kw字典中的鍵值對分別為：{‘z’:9, ‘x’:4, ‘y’:5}（這裡我感覺不需要在意列表和字典中數據存放的次序）</p>
+<hr>
+<h2 id="偏函數應用(Partial_Function_Application_PFA)">偏函數應用(Partial Function Application PFA)</h2><p>這裡所指的是一類比較特殊的函數，即它們可以將帶有任意數量參數的函數轉化成另一些帶有剩餘參數的函數對象。某種意義上這和使用默認參數的情形相同，但在PFA的例子中，參數不需要調用函數默認值，而只需要明確要調用的集合。這樣一來對於一個函數來說，你可以擁有針對它的諸多偏函數調用，每個都能用不同的參數傳遞給原函數，然後進行調用。</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="prompt">&gt;&gt;&gt; </span><span class="keyword">from</span> operator <span class="keyword">import</span> add, mul</span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span><span class="keyword">from</span> functools <span class="keyword">import</span> partial</span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>add1 = partial(add, <span class="number">1</span>)         <span class="comment"># add1(x) == add(1, x)</span></span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>mul100 = partial(mul, <span class="number">100</span>)     <span class="comment"># mul100(x) == mul(100, x)</span></span><br><span class="line">&gt;&gt;&gt;</span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>add1(<span class="number">10</span>)</span><br><span class="line"><span class="number">11</span></span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>add1(<span class="number">1</span>)</span><br><span class="line"><span class="number">2</span></span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>mul100(<span class="number">10</span>)</span><br><span class="line"><span class="number">1000</span></span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>mul100(<span class="number">500</span>)</span><br><span class="line"><span class="number">50000</span></span><br></pre></td></tr></table></figure>
+<p>add1函數的功能是對傳進來的參數的值執行加一操作，然後返回；mul100則是對其進行乘以100的操作，然後返回。你可以看到我們並不需要去實現這兩個函數，我們調用的是已經存在的函數，然而我們卻可以做到調用簡化，這就是PFA的威力。這種威力在我們需要調用那些帶有許多參數的函數的時候體現得最為明顯。這裡再舉一例：</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="prompt">&gt;&gt;&gt; </span>baseTwo = partial(int, base=<span class="number">2</span>)</span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>baseTwo.__doc__ = <span class="string">'Convert base 2 string to an int.'</span></span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>baseTwo(<span class="string">'10010'</span>)</span><br><span class="line"><span class="number">18</span></span><br></pre></td></tr></table></figure>
+<p>以後我們想把二進制字符串轉換為十進制數字的時候，就可以簡單調用baseTwo函數了，而不需要每次都很繁瑣地調用int(‘10010’, 2)。不過你需要注意，如果你創建了不帶關鍵字參數的函數，比如baseTwo = partial(int, 2)，這可能會讓參數以錯誤的順序傳入int()，因為固定參數總是放在運行時刻參數的左邊，即baseTwo == int(2, x)，這時便會出現異常。</p>
+<hr>
+<h2 id="一個有趣的特性">一個有趣的特性</h2><p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">fuck = &#123;<span class="string">'a'</span>:<span class="number">1</span>, <span class="string">'b'</span>:<span class="number">2</span>&#125;[<span class="string">'a'</span>]</span><br><span class="line">print(fuck)   <span class="comment">#輸出為1</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">a</span><span class="params">(fuck)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">b</span><span class="params">()</span>:</span>print(<span class="string">'b'</span>)</span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">c</span><span class="params">()</span>:</span>print(<span class="string">'c'</span>)</span><br><span class="line">    suck = &#123;<span class="string">'funcb'</span>:b, <span class="string">'funcc'</span>:c&#125;[fuck]</span><br><span class="line">    suck()</span><br><span class="line">a(<span class="string">'funcb'</span>)  <span class="comment">#輸出b</span></span><br></pre></td></tr></table></figure>
+<hr>
+<h2 id="面向對象編程">面向對象編程</h2><p>面向對象編程大家應該都已經比較熟悉了，我這裡就著重只談一些我認為比較重要的地方。</p>
+<ol>
+<li><p>如果需要，每個子類最好定義它自己的構造器，不然基類的構造器會被調用。然而若子類重寫了基類的構造器，則基類的構造器將不會被自動調用，而需要你手動去調用。</p>
+</li>
+<li><p>解構器–del–只有在當前類實例的所有引用都被清除掉之後才會被調用。注意：重寫–del–之前要記得調用父類的–del–，另外，調用del x不表示調用了x.–del–，而只是減少了x的引用計數。</p>
+</li>
+<li><p>要想更新類屬性，只能通過類名來訪問該屬性。若通過實例來訪問，會相當於創建了一個該實例的屬性，而不是修改類屬性。當然了，這裡針對的是那些不可變的類屬性，若為可變類屬性，則通過實例來訪問的話，會直接修改該類屬性。</p>
+</li>
+<li><p>若想在子類中調用父類的方法，推薦採用super方法。</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">P</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">foo</span><span class="params">(self)</span>:</span></span><br><span class="line">        print(<span class="string">'Hi,I'</span>m P-foo())</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">C</span><span class="params">(P)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">foo</span><span class="params">(self)</span>:</span></span><br><span class="line">        super(C,self).foo()</span><br><span class="line">        print(<span class="string">'Hi,I'</span>m C-foo()) </span><br><span class="line">c = C()</span><br><span class="line">c.foo()</span><br></pre></td></tr></table></figure>
+<p>輸出：</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Hi,I'm P-foo()</span><br><span class="line">Hi,I'm C-foo()</span><br></pre></td></tr></table></figure>
+<p>關於super()，其實這一塊的水挺深的，我這裡只是簡單地做一個介紹，詳細地可以看這裡：<a href="http://blog.csdn.net/johnsonguo/article/details/585193" target="_blank" rel="external">關於python中的super()用法研究</a></p>
+</li>
+</ol>
+<p><strong>多重繼承</strong></p>
+<p>說道多重繼承，一個顯而易見的問題就是當子類調用其父類中的某個方法的時候，（假設其父類都有該方法）python解釋器是按照何種方式在繼承樹上進行遍歷的。在python2.x的版本中，類分為經典類（不繼承自object）和新式類（繼承自object）。不過在python3.x中，這兩者已經沒有區別，都是新式類。按照《核心編程》中的說法，經典類是採用深搜的方法來遍歷繼承樹的，而新式類則是採用廣搜的方法。這裡我們只舉新式類的例子：</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">P1</span>:</span> <span class="comment">#(object):                     # 父类1</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">foo</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">print</span> <span class="string">'called P1-foo()'</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">P2</span>:</span> <span class="comment">#(object):                     # 父类2</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">foo</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">print</span> <span class="string">'called P2-foo()'</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">bar</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">print</span> <span class="string">'called P2-bar()'</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">C1</span><span class="params">(P1, P2)</span>:</span>                        <span class="comment">#子类1，从P1，P2 派生</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">C2</span><span class="params">(P1, P2)</span>:</span>                        <span class="comment">#子类2，从P1，P2 派生</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">bar</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">print</span> <span class="string">'called C2-bar()'</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">GC</span><span class="params">(C1, C2)</span>:</span>                        <span class="comment">#定义子孙类</span></span><br><span class="line">    <span class="keyword">pass</span>                                 <span class="comment">#从C1，C2 派生</span></span><br></pre></td></tr></table></figure>
+<p>繼承樹示意圖如下：</p>
+<p><img src="http://myblogpicture.qiniudn.com/5.jpg" alt=""></p>
+<p>然後我們來執行如下代碼：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="prompt">&gt;&gt;&gt; </span>gc = GC()</span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>gc.foo()               <span class="comment"># GC ==&gt; C1 ==&gt; C2 ==&gt; P1</span></span><br><span class="line">called P1-foo()</span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>gc.bar()               <span class="comment"># GC ==&gt; C1 ==&gt; C2</span></span><br><span class="line">called C2-bar()</span><br></pre></td></tr></table></figure>
+<p>我們可以清楚地看到，這裡採用的搜索算法為廣搜算法，即優先搜索在繼承樹中離自己最近的父類。</p>
+<hr>
+<h2 id="迭代器">迭代器</h2><p>什麼叫迭代器？我們定義了一個–iter–()方法的類就被叫做迭代器，這意味著我們可以自己創建自己的迭代器。我們先來看一個簡單的代碼：</p>
+<p>代碼示例：</p>
+<p>(randSeq.py)<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> random <span class="keyword">import</span> choice</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">RandSeq</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, seq)</span>:</span></span><br><span class="line">        self.data = seq</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__iter__</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">return</span> self</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__next__</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">return</span> choice(self.data)</span><br></pre></td></tr></table></figure></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="prompt">&gt;&gt;&gt; </span><span class="keyword">from</span> randseq <span class="keyword">import</span> RandSeq</span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span><span class="keyword">for</span> eachItem <span class="keyword">in</span> RandSeq(</span><br><span class="line"><span class="prompt">... </span>   (<span class="string">'rock'</span>, <span class="string">'paper'</span>, <span class="string">'scissors'</span>)):</span><br><span class="line"><span class="prompt">... </span>   <span class="keyword">print</span> (eachItem)</span><br><span class="line">...</span><br><span class="line">scissors</span><br><span class="line">scissors</span><br><span class="line">rock</span><br><span class="line">paper</span><br><span class="line">paper</span><br><span class="line">scissors</span><br><span class="line">:</span><br></pre></td></tr></table></figure>
+<p>這裡我們創建了一個隨機序列迭代器，它接受一個序列，然後隨機地返回其中的元素，需要注意的是這是一個無窮迭代，因為我們無損地讀取了一個序列，所以它是不會越界的。我們可以看到–iter–()僅返回self，這就是如何將一個對象聲明為迭代器的方式，最後，調用–next–方法來得到迭代器中連續的值。</p>
+<p>我們在來看一個例子：</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyIterator</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self,step)</span>:</span></span><br><span class="line">        self.step=step</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__next__</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">if</span> self.step==<span class="number">0</span>:</span><br><span class="line">            <span class="keyword">raise</span> StopIteration</span><br><span class="line">        self.step-=<span class="number">1</span></span><br><span class="line">        <span class="keyword">return</span> self.step</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__iter__</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">return</span> self</span><br><span class="line">    </span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> MyIterator(<span class="number">6</span>):</span><br><span class="line">    print(i)</span><br></pre></td></tr></table></figure>
+<p>輸出：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="prompt">&gt;&gt;&gt; </span>================================ RESTART ================================</span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span></span><br><span class="line"><span class="number">5</span></span><br><span class="line"><span class="number">4</span></span><br><span class="line"><span class="number">3</span></span><br><span class="line"><span class="number">2</span></span><br><span class="line"><span class="number">1</span></span><br><span class="line"><span class="number">0</span></span><br><span class="line">&gt;&gt;&gt;</span><br></pre></td></tr></table></figure>
+<p>令這個迭代停止下來的方法就是捕獲StopIteration異常。</p>
+<hr>
+<h2 id="新式類的高級屬性">新式類的高級屬性</h2><p>簡單的模塊級私有化只需要在屬性或函數名前加一個單下劃線字符即可，這樣就可以防止它們被from mymodule import *這樣的語句加載。</p>
+<p>–slots–是一個類變量，由一序列型對象組成，由所有合法標識構成的實例屬性的集合來表示。它可以是一個列表、元組或可迭代對象，也可以是標識實例能擁有的唯一的屬性的簡單字符串。任何試圖創建一個其名不在–slots–中的名字的實例屬性都將導致AttributeError異常。</p>
+<p>代碼示例：</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">class SlottedClass(object):</span><br><span class="line">    __slots__ = ('foo', 'bar')</span><br><span class="line">&gt;&gt;&gt; c = SlottedClass()</span><br><span class="line">&gt;&gt;&gt;</span><br><span class="line">&gt;&gt;&gt; c.foo = 42</span><br><span class="line">&gt;&gt;&gt; c.xxx = "don't think so" Traceback (most recent call last):</span><br><span class="line">File "&lt;stdin&gt;", line 1, in ?</span><br><span class="line">AttributeError: 'SlottedClass' object has no attribute 'xxx'</span><br></pre></td></tr></table></figure>
+<p>這種特性的主要目的是節約內存。其副作用是某種類型的”安全”,它能防止用戶隨心所欲地動態增加實例屬性。帶<strong>slots</strong>屬性的類定義不會存在<strong>dict</strong>了（除非你在<strong>slots</strong>中增加’<strong>dict</strong>‘元素）。</p>
+<p>python給類提供了名為–call–的特殊方法，該方法允許程序員創建可調用的對象（實例）。</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">C</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__call__</span><span class="params">(self,*args)</span>:</span></span><br><span class="line">        print(<span class="string">'args:\n'</span>,args)</span><br><span class="line">c = C()</span><br><span class="line">c(<span class="number">3</span>)  <span class="comment">#輸出(3, )</span></span><br></pre></td></tr></table></figure>
+<p>callable()為一個布爾函數，用於判斷一個對象是否是可調用的。可調用返回True，否則返回False。</p>
+<hr>
+<h2 id="compile()">compile()</h2><p>compile()允許程序員在運行時刻迅速生成代碼對象，然後就可以用exec()或者內建函數eval()來執行這些對象或者對它們進行求值了。一個很重要的地方是：exec()和eval()都可以執行字符串格式的python代碼。但是exec()更加強大并更具有技巧性。eval()函數只能執行單獨一條表達式，但是exec()能够執行多條語句，導入(import)，函數聲明，甚至整個Python程序的字符串表示也可以。</p>
+<p>compile函數的三個參數都是必需的，第一個參數代表要編譯的python代碼（字符串），第二個參數代表存放代碼對象的文件的名字（字符串）。雖為必需，但通常被置為空字符串。第三個參數也是一個字符串，用來表明代碼對象的類型，它有以下三種可能取值：</p>
+<ul>
+<li>‘eval’ 可求值表達式，和eval()一起使用</li>
+<li>‘single’ 單一可執行語句，和exec()一起使用</li>
+<li>‘exec’ 可執行語句組，和exec()一起使用</li>
+</ul>
+<p>下面分別給出這三種情況的例子：</p>
+<p><strong>可求值表達式</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="prompt">&gt;&gt;&gt; </span>eval_code = compile(<span class="string">'100 + 200'</span>, <span class="string">''</span>, <span class="string">'eval'</span>)</span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>eval(eval_code)</span><br><span class="line"><span class="number">300</span></span><br></pre></td></tr></table></figure>
+<p><strong>單一可執行語句</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="prompt">&gt;&gt;&gt; </span>single_code = compile(<span class="string">'print("hello world!")'</span>, <span class="string">''</span>, <span class="string">'single'</span>)</span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>exec(single_code)</span><br><span class="line">hello world!</span><br></pre></td></tr></table></figure>
+<p><strong>可執行語句組</strong></p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&gt;&gt;&gt; exec_code = compile("""req = int(input('Count how many numbers?'))</span><br><span class="line">for eachNum in range(req):</span><br><span class="line">    print(eachNum)""", '', 'exec')</span><br><span class="line">&gt;&gt;&gt; exec(exec_code)</span><br><span class="line">Count how many numbers?6</span><br><span class="line">0</span><br><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td></tr></table></figure>
+<hr>
+<h2 id="需要注意的小知識">需要注意的小知識</h2><p>在python3中，對於input()，用戶輸入什麼它就返回什麼，即只是簡單地將其作為字符串返回；而對於eval(input())，則會將用戶輸入的東西作為表達式進行求值，然後返回其結果。</p>
+<p>代碼示例：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="prompt">&gt;&gt;&gt; </span>a = eval(input())</span><br><span class="line"><span class="number">1</span>+<span class="number">2</span></span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>print(a)</span><br><span class="line"><span class="number">3</span></span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>a = input()</span><br><span class="line"><span class="number">1</span>+<span class="number">2</span></span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span>print(a)</span><br><span class="line"><span class="number">1</span>+<span class="number">2</span></span><br></pre></td></tr></table></figure>
+    </section>
+      <section id="comment">
+          <h1 class="title">Comments</h1>
+          
+          <!-- Duoshuo Comment BEGIN -->
+                  <div class="ds-thread"></div>
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"justuno"};
+                  (function() {
+                          var ds = document.createElement('script');
+                          ds.type = 'text/javascript';ds.async = true;
+                          ds.src = 'http://static.duoshuo.com/embed.js';
+                          ds.charset = 'UTF-8';
+                          (document.getElementsByTagName('head')[0] 
+                          || document.getElementsByTagName('body')[0]).appendChild(ds);
+                  })();
+                  </script>
+          <!-- Duoshuo Comment END -->
+
+          
+      </section>
+    <footer class="post-footer">
+      <section class="author">
+        <h4>Justuno</h4>
+        <p>渾渾噩噩廿三年，驀然回首，竟已淪落到今日之地步。</p>
+      </section>
+
+      <section class="share">
+        <h4>Share this post</h4>
+        <!--<a class="icon-twitter" href="http://twitter.com/share?url=http://yoursite.com/2014/03/21/python-course-3/"
+          onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+          <span class="hidden">Twitter</span>
+        </a>
+        <a class="icon-facebook" href="https://www.facebook.com/sharer/sharer.php?u=http://yoursite.com/2014/03/21/python-course-3/"
+          onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+          <span class="hidden">Facebook</span>
+        </a>
+        <a class="icon-google-plus" href="https://plus.google.com/share?url=http://yoursite.com/2014/03/21/python-course-3/"
+           onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+          <span class="hidden">Google+</span>
+        </a>-->
+        <div class="bdsharebuttonbox"><a href="#" class="bds_more" data-cmd="more"></a><a href="#" class="bds_renren" data-cmd="renren" title="分享到人人网"></a><a href="#" class="bds_douban" data-cmd="douban" title="分享到豆瓣网"></a></div>
+<script>window._bd_share_config={"common":{"bdSnsKey":{},"bdText":"","bdMini":"1","bdMiniList":false,"bdPic":"","bdStyle":"0","bdSize":"16"},"share":{},"image":{"viewList":["renren","douban"],"viewText":"分享到：","viewSize":"16"},"selectShare":{"bdContainerClass":null,"bdSelectMiniList":["renren","douban"]}};with(document)0[(getElementsByTagName('head')[0]||body).appendChild(createElement('script')).src='http://bdimg.share.baidu.com/static/api/js/share.js?v=89860593.js?cdnversion='+~(-new Date()/36e5)];</script>
+      </section>
+    </footer>
+  </article>
+</main>
+
+
+  
+<footer class="site-footer">
+  
+  <div class="inner">
+     <section class="copyright">All content copyright <a href="/">Justuno技术笔记</a> &copy; 2014 &bull; All rights reserved.</section>
+     <section class="poweredby">Proudly published with <a class="icon-ghost" href="http://zespia.tw/hexo/">Hexo</a></section>
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+<script type="text/javascript" src="/js/jquery.fitvids.js"></script>
+<script type="text/javascript" src="/js/index.js"></script>
+
+
+<script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-49018948-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+</script>
+
+
+
+
+
+</body>
+</html>

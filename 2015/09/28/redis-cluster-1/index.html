@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html" charset="UTF-8" >
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+  <title>关于Redis Cluster，我所知道的事（一）</title>
+  <meta name="description" content="" />
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="MobileOptimized" content="320" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="stylesheet" type="text/css" href="/css/screen.css" />
+  <link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=Noto+Serif:400,700,400italic|Open+Sans:700,400" />
+
+  <meta name="generator" content="Justuno技术笔记">
+
+  <a href="https://github.com/justuno"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://github-camo.global.ssl.fastly.net/38ef81f8aca64bb9a64448d0d70f1308ef5341ab/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png"></a>
+  
+  
+  
+  
+
+  
+</head>
+
+
+<body class="post-template">
+
+  
+
+<main class="content" role="main">
+  <article class="post">
+    <header class="post-header">
+      <a class="blog-logo" href="/">
+        
+        <img src="//blog.ghost.org/content/images/2013/Nov/bloglogo_1-1.png" alt="Blog Logo"/></a>
+        
+      </a>
+    </header>
+    <span class="post-meta">
+      <time datetime="2015-09-28T08:31:00.000Z" itemprop="datePublished">2015-09-28</time>
+       on <a href='/tags/redis/' style='margin:0 5px;'>redis</a><a href='/tags/分布式/' style='margin:0 5px;'>分布式</a><a href='/tags/缓存/' style='margin:0 5px;'>缓存</a>
+    </span>
+    <h1 class="post-title">关于Redis Cluster，我所知道的事（一）</h1>
+    <section class="post-content">
+      <p><br><br>因9月30号要在组内做分享，这些天我一直在看Redis Cluster。老实说东西有点多，我一下子也看不完，因此打算先把现阶段看过的东西梳理一下。文章的结构如下：</p>
+<ul>
+<li><p>Redis单机环境的安装与基本数据结构的介绍</p>
+</li>
+<li><p>Redis Cluster介绍</p>
+</li>
+<li><p>Redis Cluster环境搭建</p>
+</li>
+<li><p>补遗</p>
+</li>
+</ul>
+<p>参考资料主要为Redis的两篇官方文档以及网上搜到的一些零碎的资料。因为是第一次接触这块内容，不敢保证所写内容都是正确的，如本文有误，烦请批评指正。</p>
+<a id="more"></a>
+<p><hr></p>
+<h2 id="Redis单机环境的安装与基本数据结构的介绍">Redis单机环境的安装与基本数据结构的介绍</h2><p>Redis的安装是非常简单的，首先是下载官方的压缩包，解压，cd到对应的目录，然后执行make命令即可。然后我们需要启动redis-server，命令是：src/redis-server<br>redis有个内置的client，通过它我们可以通过命令行的方式与redis-server进行交互，命令是：src/redis-cli</p>
+<p>Redis的数据结构主要有以下几种：<strong>Strings，Lists，Sets，Hashes，Sorted sets和Bitmaps and HyperLogLogs</strong>。关于每种数据结构的介绍以及基本的使用方法可以参考这里：<a href="http://redis.io/topics/data-types-intro" target="_blank" rel="external">An introduction to Redis data types and abstractions</a> 因为这个比较简单，这里就不再赘述了。</p>
+<p><hr></p>
+<h2 id="Redis_Cluster介绍">Redis Cluster介绍</h2><p>Redis Cluster，又叫Redis集群，是一种可以令数据在多个Redis节点之间进行传输的设施，通常用作构建分布式缓存。Redis集群的优势主要集中在以下两个方面：</p>
+<ol>
+<li>自动分割数据到不同的节点</li>
+<li>部分节点宕机或不可达的情况下，能够继续处理命令</li>
+</ol>
+<p>需要注意的是，Redis集群并不支持处理多命令，当然这并不是绝对的，后面会对此进行进一步地介绍。</p>
+<p>每个节点都需要保持两个TCP端口处于打开状态，其中一个用于与客户端进行交互，另一个用于集群内部节点之间传输信息。这两个连接的端口号的差值默认为10000，例如第一个端口号为6379，则另外一个为16379。第二个端口用于集群链接（cluster bus），这是一种使用一个二进制协议来进行点对点（node-to-node）交互的通道。集群链接用户宕机检测，配置更新，失效备援（failover）认证等等。客户端永远都不需要试图通过集群链接端口进行交互，而应当通过普通的Redis命令端口。</p>
+<h3 id="哈希槽（hash_slots）">哈希槽（hash slots）</h3><p>哈希槽是redis集群中的一个重要的概念，它其实就是代表这一个keys的集合。redis集群共有16384个哈希槽，每个key通过CRC16校验然后对16384进行取模来决定该key应当被放到哪个槽中。集群中的每个节点负责一部分哈希槽，举例，比如现在集群中存在三个节点，则：</p>
+<ol>
+<li>节点 A 包含 0 到 5500号哈希槽</li>
+<li>节点 B 包含5501 到 11000 号哈希槽</li>
+<li>节点 C 包含11001 到 16384号哈希槽</li>
+</ol>
+<p>这种设计使得添加或者删除集群中的节点变得比较简单，比如说我想添加一个节点D，我只需要将A,B,C中的一部分槽移动到D即可；同样地，如果我想移除节点A，则只需要将A所负责的那一部分槽移动到B和C节点，然后将没有任何槽的A节点从集群中删除即可。</p>
+<p>需要说明的是，移动哈希槽并不需要停止服务，因此无论是添加、删除还是改变节点所包含的槽占总槽数的百分比，都是不需要停机的。</p>
+<h3 id="哈希标签（hash_tags）">哈希标签（hash tags）</h3><p>redis集群并不是在任何情况下都不支持执行多命令的。事实上如果我们希望做到这点，则首先需要引入一个哈希标签（hash tags）的概念，这个东西简单来说就是用大括号{}包裹起来的一个key的子串，比如说this{foo}key和another{foo}key，其中的{foo}就是一个哈希标签，因为这两个key拥有相同的哈希标签{foo}，因此可以保证他们会被放到相同的哈希槽中，从而使得它们可以被用于多命令执行中。</p>
+<p>这里插一句，之所以this{foo}key和another{foo}key会被放到同一个哈希槽中，是因为只有其中的{foo}会被哈希，因此它们的哈希值是相同的。另外需要说明的是，哈希标签中的大括号是不支持嵌套的，也就是说，redis集群只会将一个key中的第一次出现的{和第一次出现的}之间的内容进行哈希，而不会去管key中存在多少个大括号。另外，如果大括号之间没有字符，则对整个key进行哈希，这种将{}放到key中的做法通常用来保证整个key会被哈希。</p>
+<h3 id="主从模型（master-slave_model）">主从模型（master-slave model）</h3><p>这个非常好理解，我们假设我们的集群中存在三个master和三个slave，且master和slave一一对应，设为A,B,C和A1,B1,C1，则当B宕机时，集群便会推举B1成为新的master，使得整个集群得以继续正常运转。当然，当B和B1都处于宕机状态时，整个集群便可不用了。</p>
+<p>当然，每个master可以拥有多个slave，slave越多，集群的健壮性也就越大。另外，redis集群还拥有复制迁移（replicas migration）的特性，这个特性简单来说就是说，假设集群当前的slave节点数要稍稍多于master数，则当某个只拥有一个slave的master的slave宕机时，该特性可以保证一个slave会被迁移到这个master上，从而尽可能地保证了整个集群的可用性。</p>
+<h3 id="一致性保证（consistency_guarantees）">一致性保证（consistency guarantees）</h3><p>redis集群并不能保证数据的<a href="http://www.zhihu.com/question/20113030" target="_blank" rel="external">强一致性</a>（strong consistency），因此在一些特定的情况下，集群可能会丢失写操作。具体来说，由于集群采用的是异步备份（asynchronous replication），因此在一个写操作中，实际上发生了一下几个步骤：</p>
+<ol>
+<li>客户端向节点B写数据</li>
+<li>B节点返回OK给客户端</li>
+<li>B节点将写操作的结果传播（propagates）给它的suoyouslave节点</li>
+</ol>
+<p>我们可以看到B节点并没有在返回结果给客户端之前，等待它的slave节点对该操作结果进行确认。因此，假设B节点确认了客户端发过来的写操作，但是却在发给它的slave之前宕机了，它的其中一个slave将会被推举为一个新的master，使得这一写操作永远丢失。</p>
+<p>这听上去不够好，然而如果要等master节点的每一个slave都确实收到了写操作的结果之后再发OK给客户端的话，这显然会带来严重的性能问题。因此这事实上是一种对性能和一致性的一种权衡。</p>
+<p>为了尽可能地缓解这一问题，redis集群通过<a href="http://redis.io/commands/wait" target="_blank" rel="external">wait</a>命令实现同步写操作，这多少让写操作丢失出现的可能性降低了一点。</p>
+<p>还有一种可能导致写操作丢失的情况是集群出现了网络分区（network partition）即客户端和至少一个master节点被孤立于其他的多数节点。举个例子：假设集群包含 A 、 B 、 C 、 A1 、 B1 、 C1 六个节点， 其中 A 、B 、C 为主节点， A1 、B1 、C1 为A，B，C的从节点， 还有一个客户端 Z1。当发生网络分区之后，假设集群被分为两块，一块是A 、C 、A1 、B1 和 C1，另一块是B和Z1，则当分区的时间足够长时，B1将被推举为新的master，则Z1向B写入的数据将永久丢失。因为在等待一个制定时长的超时时间之后，（下面会提到的）当一个slave节点被推举为新的master节点时，处于少数分区中的master节点将停止接收写操作。</p>
+<p>注意，在网络分区期间，Z1向B发送写命令的最大时间是有限制的，这一限制被称为节点超时。（node timeout）</p>
+
+    </section>
+      <section id="comment">
+          <h1 class="title">Comments</h1>
+          
+          <!-- Duoshuo Comment BEGIN -->
+                  <div class="ds-thread"></div>
+          <script type="text/javascript">
+          var duoshuoQuery = {short_name:"justuno"};
+                  (function() {
+                          var ds = document.createElement('script');
+                          ds.type = 'text/javascript';ds.async = true;
+                          ds.src = 'http://static.duoshuo.com/embed.js';
+                          ds.charset = 'UTF-8';
+                          (document.getElementsByTagName('head')[0] 
+                          || document.getElementsByTagName('body')[0]).appendChild(ds);
+                  })();
+                  </script>
+          <!-- Duoshuo Comment END -->
+
+          
+      </section>
+    <footer class="post-footer">
+      <section class="author">
+        <h4>Justuno</h4>
+        <p>渾渾噩噩廿三年，驀然回首，竟已淪落到今日之地步。</p>
+      </section>
+
+      <section class="share">
+        <h4>Share this post</h4>
+        <!--<a class="icon-twitter" href="http://twitter.com/share?url=http://yoursite.com/2015/09/28/redis-cluster-1/"
+          onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;">
+          <span class="hidden">Twitter</span>
+        </a>
+        <a class="icon-facebook" href="https://www.facebook.com/sharer/sharer.php?u=http://yoursite.com/2015/09/28/redis-cluster-1/"
+          onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;">
+          <span class="hidden">Facebook</span>
+        </a>
+        <a class="icon-google-plus" href="https://plus.google.com/share?url=http://yoursite.com/2015/09/28/redis-cluster-1/"
+           onclick="window.open(this.href, 'google-plus-share', 'width=490,height=530');return false;">
+          <span class="hidden">Google+</span>
+        </a>-->
+        <div class="bdsharebuttonbox"><a href="#" class="bds_more" data-cmd="more"></a><a href="#" class="bds_renren" data-cmd="renren" title="分享到人人网"></a><a href="#" class="bds_douban" data-cmd="douban" title="分享到豆瓣网"></a></div>
+<script>window._bd_share_config={"common":{"bdSnsKey":{},"bdText":"","bdMini":"1","bdMiniList":false,"bdPic":"","bdStyle":"0","bdSize":"16"},"share":{},"image":{"viewList":["renren","douban"],"viewText":"分享到：","viewSize":"16"},"selectShare":{"bdContainerClass":null,"bdSelectMiniList":["renren","douban"]}};with(document)0[(getElementsByTagName('head')[0]||body).appendChild(createElement('script')).src='http://bdimg.share.baidu.com/static/api/js/share.js?v=89860593.js?cdnversion='+~(-new Date()/36e5)];</script>
+      </section>
+    </footer>
+  </article>
+</main>
+
+
+  
+<footer class="site-footer">
+  
+  <div class="inner">
+     <section class="copyright">All content copyright <a href="/">Justuno技术笔记</a> &copy; 2014 &bull; All rights reserved.</section>
+     <section class="poweredby">Proudly published with <a class="icon-ghost" href="http://zespia.tw/hexo/">Hexo</a></section>
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+<script type="text/javascript" src="/js/jquery.fitvids.js"></script>
+<script type="text/javascript" src="/js/index.js"></script>
+
+
+<script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-49018948-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+</script>
+
+
+
+
+
+</body>
+</html>
