@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Type" content="text/html" charset="UTF-8" >
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
   <title>关于Redis Cluster，我所知道的事（一）</title>
-  <meta name="description" content="" />
+  <meta name="description" content="记录一路走来的点点滴滴" />
   <meta name="HandheldFriendly" content="True" />
   <meta name="MobileOptimized" content="320" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -46,7 +46,7 @@
     <section class="post-content">
       <p><br><br>因9月30号要在组内做分享，这些天我一直在看Redis Cluster。老实说东西有点多，我一下子也看不完，因此打算先把现阶段看过的东西梳理一下。文章的结构如下：</p>
 <ul>
-<li><p>Redis单机环境的安装与基本数据结构的介绍</p>
+<li><p>Redis单机环境的安装与基本数据结构介绍</p>
 </li>
 <li><p>Redis Cluster介绍</p>
 </li>
@@ -58,7 +58,7 @@
 <p>参考资料主要为Redis的两篇官方文档以及网上搜到的一些零碎的资料。因为是第一次接触这块内容，不敢保证所写内容都是正确的，如本文有误，烦请批评指正。</p>
 <a id="more"></a>
 <p><hr></p>
-<h2 id="Redis单机环境的安装与基本数据结构的介绍">Redis单机环境的安装与基本数据结构的介绍</h2><p>Redis的安装是非常简单的，首先是下载官方的压缩包，解压，cd到对应的目录，然后执行make命令即可。然后我们需要启动redis-server，命令是：src/redis-server<br>redis有个内置的client，通过它我们可以通过命令行的方式与redis-server进行交互，命令是：src/redis-cli</p>
+<h2 id="Redis单机环境的安装与基本数据结构介绍">Redis单机环境的安装与基本数据结构介绍</h2><p>Redis的安装是非常简单的，首先是下载官方的压缩包，解压，cd到对应的目录，然后执行make命令即可。然后我们需要启动redis-server，命令是：src/redis-server<br>redis有个内置的client，通过它我们可以通过命令行的方式与redis-server进行交互，命令是：src/redis-cli</p>
 <p>Redis的数据结构主要有以下几种：<strong>Strings，Lists，Sets，Hashes，Sorted sets和Bitmaps and HyperLogLogs</strong>。关于每种数据结构的介绍以及基本的使用方法可以参考这里：<a href="http://redis.io/topics/data-types-intro" target="_blank" rel="external">An introduction to Redis data types and abstractions</a> 因为这个比较简单，这里就不再赘述了。</p>
 <p><hr></p>
 <h2 id="Redis_Cluster介绍">Redis Cluster介绍</h2><p>Redis Cluster，又叫Redis集群，是一种可以令数据在多个Redis节点之间进行传输的设施，通常用作构建分布式缓存。Redis集群的优势主要集中在以下两个方面：</p>
@@ -90,7 +90,85 @@
 <p>这听上去不够好，然而如果要等master节点的每一个slave都确实收到了写操作的结果之后再发OK给客户端的话，这显然会带来严重的性能问题。因此这事实上是一种对性能和一致性的一种权衡。</p>
 <p>为了尽可能地缓解这一问题，redis集群通过<a href="http://redis.io/commands/wait" target="_blank" rel="external">wait</a>命令实现同步写操作，这多少让写操作丢失出现的可能性降低了一点。</p>
 <p>还有一种可能导致写操作丢失的情况是集群出现了网络分区（network partition）即客户端和至少一个master节点被孤立于其他的多数节点。举个例子：假设集群包含 A 、 B 、 C 、 A1 、 B1 、 C1 六个节点， 其中 A 、B 、C 为主节点， A1 、B1 、C1 为A，B，C的从节点， 还有一个客户端 Z1。当发生网络分区之后，假设集群被分为两块，一块是A 、C 、A1 、B1 和 C1，另一块是B和Z1，则当分区的时间足够长时，B1将被推举为新的master，则Z1向B写入的数据将永久丢失。因为在等待一个制定时长的超时时间之后，（下面会提到的）当一个slave节点被推举为新的master节点时，处于少数分区中的master节点将停止接收写操作。</p>
+<img src="/2015/09/28/redis-cluster-1/jiagou.jpg" alt="Redis-cluster 架构图" title="Redis-cluster 架构图">
 <p>注意，在网络分区期间，Z1向B发送写命令的最大时间是有限制的，这一限制被称为节点超时。（node timeout）</p>
+<h3 id="CLUSTER_NODES命令">CLUSTER NODES命令</h3><p>CLUSTER NODES命令可用于监察集群中各个节点的相关信息，其信息格式为：</p>
+<blockquote><p><id> <ip:port> <flags> <master> <ping-sent> <pong-recv> <config-epoch> <link-state> <slot> <slot> … <slot></slot></slot></slot></link-state></config-epoch></pong-recv></ping-sent></master></flags></ip:port></id></p>
+</blockquote>
+<p>下面分别来介绍每个参数的含义：</p>
+<ol>
+<li>节点ID，由40个随机生成的字符组成，并唯一地标识这个节点。每个节点都会记住其他节点的ID，即它们彼此之间是通过ID来进行辨识的，而不是通过IP和端口号。这也就是说，哪怕某个节点的IP和端口号发生了变化，其他节点也能够找到这个节点。</li>
+<li>IP和端口号</li>
+<li>标识（flags） 如master, slave, myself, fail, …</li>
+<li>如果该节点为slave，则显示其master的节点ID，否则显示为’-‘</li>
+<li>集群最近一次向节点发送 PING 命令之后， 过去了多长时间还没接到回复</li>
+<li>节点最近一次收到 PONG 回复的时间</li>
+<li>节点的配置纪元（Configuration epoch）即当前节点（若当前节点为slave，则为其master节点）的配置纪元。每遇到一次失效备援，一个新的，唯一的，单调性的配置纪元就会被创建。它主要用于当多个节点声称负责同一组哈希槽时，配置纪元高的节点将最终负责这一组哈希槽。（配置纪元其形式就是一个非负的数字）</li>
+<li>点对点链接的状态信息，可为connected或disconnected</li>
+<li>该节点所负责的哈希槽的范围</li>
+</ol>
+<h3 id="添加、删除、复制迁移、升级节点">添加、删除、复制迁移、升级节点</h3><p><strong>添加一个master节点</strong></p>
+<p>首先我们要做的，就是添加一个新的空节点。（具体做法请参照下一节）当节点可以正常启动之后，我们通过redis-trib来添加这个节点到现有的集群中，其命令格式为：</p>
+<blockquote><p>./redis-trib.rb add-node 新节点IP和端口号 随便一个已经在集群中的节点的IP和端口号</p>
+</blockquote>
+<p>在这里redis-trib所做的工作其实并不多，它主要就是发送了一个CLUSTER MEET命令，这个命令的作用是让两个节点相互认识，从而将新的节点加入到集群中。</p>
+<p>不过此时新节点中还没有包含任何数据，因为它没有被分配哈希槽。分配给新节点一些哈希槽，其实也就是分片（reshard）的过程，其命令格式为：./redis-trib.rb reshard 随便一个已经在集群中的节点的IP和端口号。我们只需要指定集群中某一个节点的IP和端口号，redis-trib就能够自动寻找到集群中的其他节点。接下来，我们只需要按照命令行中的提示进行操作即可。具体的下一节有述。</p>
+<p><strong>添加一个slave节点</strong></p>
+<p>添加一个slave节点的命令是：</p>
+<blockquote><p>./redis-trib.rb add-node –slave 新节点IP和端口号 随便一个已经在集群中的节点的IP和端口号</p>
+</blockquote>
+<p>注意：这里并没有指明说我们要把这个slave节点分配到哪一个master节点，事实上，系统会自动挑选一个master节点，然后将这个slave节点分配给它。当然你也可以指定要分配给的master节点，命令为：</p>
+<blockquote><p>./redis-trib.rb add-node –slave –master-id master节点ID 新节点IP和端口号 随便一个已经在集群中的节点的IP和端口号</p>
+</blockquote>
+<p>还有一种做法，就是使用CLUSTER REPLICATE 命令。具体做法是，首先我们要访问到这个新的节点，然后执行命令：</p>
+<blockquote><p>cluster replicate master节点ID</p>
+</blockquote>
+<p><strong>移除一个节点</strong></p>
+<p>如果我们希望移除一个slave节点，只需要执行如下命令：</p>
+<blockquote><p>./redis-trib del-node 随便一个已经在集群中的节点的IP和端口号 <code>希望删除的节点ID</code></p>
+</blockquote>
+<p>如果希望移除一个master节点会稍微复杂一些，首先我们要将该节点负责的哈希槽清空，即将它们迁移到其他节点，然后再行移除。还有一种做法就是通过人工的方式来制造失效备援，这样当这个master节点的slave节点被推举为新的master节点时，这个旧的master节点就可以被移除了。当然，这么做并不会在实际上减少master节点的数量。</p>
+<p><strong>复制迁移</strong></p>
+<p>命令格式为：</p>
+<blockquote><p>CLUSTER REPLICATE master节点ID</p>
+</blockquote>
+<p>这个命令的作用其实就是切换一个slave节点的master节点。这个命令的优势在于，当我们配置的slave节点数比master数稍多时，当某个master节点的唯一的slave节点宕机了，通过该命令可以将一个多的slave节点分配给该节点，从而提高了整个集群的稳定性。</p>
+<p><strong>升级节点</strong></p>
+<p>升级一个slave节点是比较简单的，我们只需要将其停机，升级redis版本，然后再重启即可。然而升级一个master节点会稍显复杂，其思路主要就是通过人工出发失效备援，导致master节点和slave节点进行角色互换，升级完成之后再出发一次新的人工失效备援即可。</p>
+<h2 id="Redis_Cluster环境搭建">Redis Cluster环境搭建</h2><p>搭建一个redis集群环境主要有两种方法：一种是人工操作的方法，另一种时通过执行create-cluster脚本的方法，下面我将分别介绍这两种方法。<br><strong>注：构建一个集群需要的节点数最少为三个master节点。</strong></p>
+<p><strong>人工搭建</strong></p>
+<p>方便起见，我们建立三个master节点和三个slave节点。需要执行的操作具体如下：</p>
+<p>mkdir cluster-test<br>cd cluster-test<br>mkdir 7000 7001 7002 7003 7004 7005</p>
+<p>给每个目录（7000到7005）分别创建redis.conf。redis.conf的基本格式如下：</p>
+<p>port 7000<br>cluster-enabled yes<br>cluster-config-file nodes.conf<br>cluster-node-timeout 5000<br>appendonly yes</p>
+<p>注意每个redis.conf中的port都应该与自己对应的port相同。然后拷贝redis-server到cluster-test目录中，然后在终端打开6个tab，每个tab都分别cd到对应的目录中（如7000），然后执行命令：</p>
+<p>../redis-server ./redis.conf</p>
+<p>这样每个空的节点就都启动起来了。之后我们要做的就是将这些运行中的redis实例构建为一个集群，具体做法是执行如下命令：</p>
+<p>./redis-trib.rb create –replicas 1 127.0.0.1:7000 127.0.0.1:7001 \<br>127.0.0.1:7002 127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005</p>
+<p>注意这里的<strong>–replicas 1</strong>的意思是说为每个master节点分配一个slave节点。那么如果一切顺利的话，我们会在终端上看到如下所示的信息：</p>
+<p>[OK] All 16384 slots covered</p>
+<p><strong>create-cluster脚本搭建</strong></p>
+<p>显而易见通过这种方式来构建redis集群真的是太麻烦了，那么简单的方法就是通过这个create-cluster脚本来搭建。create-cluster脚本放在redis目录中的utils/create-cluster目录中。为了启动三个master节点和三个slave节点，我们只需要执行如下几条命令：</p>
+<p>create-cluster start<br>create-cluster create</p>
+<p>然后我们再执行上述的redis-trib命令即可。注意，通过这种方式默认创建的第一个节点的端口号为30001。</p>
+<p>如果要让整个集群停止运作，只需要执行：</p>
+<p>create-cluster stop</p>
+<p>你可能会问，如果我想要创建更多的master和slave节点要怎么办？很简单，修改create-cluster脚本即可。</p>
+<h2 id="补遗">补遗</h2><ol>
+<li><p>集群中的节点并不具有代理功能，即如果收到的命令不属于自己需要处理的范围，该节点并不会将这个命令自动转发给正确的节点，而是会返回给客户端一个MOVED类型的错误。客户端需要能够处理这种错误，并将命令再次发给正确的节点，其实最好能将哈希槽和节点的对应关系缓存起来，这样执行命令的效率才会更高。</p>
+</li>
+<li><p>集群中的节点还具有记录key和value映射关系，集群状态，key到正确节点的映射关系，以及自动发现其他节点，识别工作不正常节点的功能。</p>
+</li>
+<li><p>节点之间使用Gossip 协议 来进行以下工作：</p>
+<ol>
+<li>传播（propagate）关于集群的信息，以此来发现新的节点。</li>
+<li>向其他节点发送 PING 数据包，以此来检查目标节点是否正常运作。（如正常会返回PONG）</li>
+<li>在特定事件发生时，发送集群信息。</li>
+</ol>
+</li>
+<li><p>一个节点可以改变它的IP和端口号，集群可以通过节点ID自动识别出其IP/端口号的变化， 并将这一信息通过Gossip协议广播给其他节点知道。</p>
+</li>
+</ol>
 
     </section>
       <section id="comment">
