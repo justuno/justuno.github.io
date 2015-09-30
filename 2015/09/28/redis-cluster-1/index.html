@@ -90,11 +90,11 @@
 <p>这听上去不够好，然而如果要等master节点的每一个slave都确实收到了写操作的结果之后再发OK给客户端的话，这显然会带来严重的性能问题。因此这事实上是一种对性能和一致性的一种权衡。</p>
 <p>为了尽可能地缓解这一问题，redis集群通过<a href="http://redis.io/commands/wait" target="_blank" rel="external">wait</a>命令实现同步写操作，这多少让写操作丢失出现的可能性降低了一点。</p>
 <p>还有一种可能导致写操作丢失的情况是集群出现了网络分区（network partition）即客户端和至少一个master节点被孤立于其他的多数节点。举个例子：假设集群包含 A 、 B 、 C 、 A1 、 B1 、 C1 六个节点， 其中 A 、B 、C 为主节点， A1 、B1 、C1 为A，B，C的从节点， 还有一个客户端 Z1。当发生网络分区之后，假设集群被分为两块，一块是A 、C 、A1 、B1 和 C1，另一块是B和Z1，则当分区的时间足够长时，B1将被推举为新的master，则Z1向B写入的数据将永久丢失。因为在等待一个制定时长的超时时间之后，（下面会提到的）当一个slave节点被推举为新的master节点时，处于少数分区中的master节点将停止接收写操作。</p>
+<p><strong>Redis-cluster 架构图</strong></p>
 <img src="/2015/09/28/redis-cluster-1/jiagou.jpg" alt="Redis-cluster 架构图" title="Redis-cluster 架构图">
-<p>注意，在网络分区期间，Z1向B发送写命令的最大时间是有限制的，这一限制被称为节点超时。（node timeout）</p>
+<p>注意，在网络分区期间，Z1向B发送写命令的最大时间是有限制的，这一限制被称为节点超时。（node timeout）<br>节点超时的意思是说，当多数分区中的node已经推选出了新的master时，在少数分区中的master节点将停止接收写操作。节点超时还有一个作用就是当某个master节点处于宕机或不可达的状态时，等过了这个超时时间之后，这个master节点中的某个slave节点将作为新的master节点，来替换掉它。</p>
 <h3 id="CLUSTER_NODES命令">CLUSTER NODES命令</h3><p>CLUSTER NODES命令可用于监察集群中各个节点的相关信息，其信息格式为：</p>
-<blockquote><p><id> <ip:port> <flags> <master> <ping-sent> <pong-recv> <config-epoch> <link-state> <slot> <slot> … <slot></slot></slot></slot></link-state></config-epoch></pong-recv></ping-sent></master></flags></ip:port></id></p>
-</blockquote>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="title">id</span>&gt;</span> <span class="tag">&lt;<span class="title">ip:port</span>&gt;</span> <span class="tag">&lt;<span class="title">flags</span>&gt;</span> <span class="tag">&lt;<span class="title">master</span>&gt;</span> <span class="tag">&lt;<span class="title">ping-sent</span>&gt;</span> <span class="tag">&lt;<span class="title">pong-recv</span>&gt;</span> <span class="tag">&lt;<span class="title">config-epoch</span>&gt;</span> <span class="tag">&lt;<span class="title">link-state</span>&gt;</span> <span class="tag">&lt;<span class="title">slot</span>&gt;</span> <span class="tag">&lt;<span class="title">slot</span>&gt;</span> ... <span class="tag">&lt;<span class="title">slot</span>&gt;</span></span><br></pre></td></tr></table></figure>
 <p>下面分别来介绍每个参数的含义：</p>
 <ol>
 <li>节点ID，由40个随机生成的字符组成，并唯一地标识这个节点。每个节点都会记住其他节点的ID，即它们彼此之间是通过ID来进行辨识的，而不是通过IP和端口号。这也就是说，哪怕某个节点的IP和端口号发生了变化，其他节点也能够找到这个节点。</li>
@@ -109,29 +109,23 @@
 </ol>
 <h3 id="添加、删除、复制迁移、升级节点">添加、删除、复制迁移、升级节点</h3><p><strong>添加一个master节点</strong></p>
 <p>首先我们要做的，就是添加一个新的空节点。（具体做法请参照下一节）当节点可以正常启动之后，我们通过redis-trib来添加这个节点到现有的集群中，其命令格式为：</p>
-<blockquote><p>./redis-trib.rb add-node 新节点IP和端口号 随便一个已经在集群中的节点的IP和端口号</p>
-</blockquote>
+<figure class="highlight smali"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">.</span>/redis-trib.rb<span class="instruction"> add-node </span>新节点IP和端口号 随便一个已经在集群中的节点的IP和端口号</span><br></pre></td></tr></table></figure>
 <p>在这里redis-trib所做的工作其实并不多，它主要就是发送了一个CLUSTER MEET命令，这个命令的作用是让两个节点相互认识，从而将新的节点加入到集群中。</p>
 <p>不过此时新节点中还没有包含任何数据，因为它没有被分配哈希槽。分配给新节点一些哈希槽，其实也就是分片（reshard）的过程，其命令格式为：./redis-trib.rb reshard 随便一个已经在集群中的节点的IP和端口号。我们只需要指定集群中某一个节点的IP和端口号，redis-trib就能够自动寻找到集群中的其他节点。接下来，我们只需要按照命令行中的提示进行操作即可。具体的下一节有述。</p>
 <p><strong>添加一个slave节点</strong></p>
 <p>添加一个slave节点的命令是：</p>
-<blockquote><p>./redis-trib.rb add-node –slave 新节点IP和端口号 随便一个已经在集群中的节点的IP和端口号</p>
-</blockquote>
+<figure class="highlight smali"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">.</span>/redis-trib.rb<span class="instruction"> add-node </span>--slave 新节点IP和端口号 随便一个已经在集群中的节点的IP和端口号</span><br></pre></td></tr></table></figure>
 <p>注意：这里并没有指明说我们要把这个slave节点分配到哪一个master节点，事实上，系统会自动挑选一个master节点，然后将这个slave节点分配给它。当然你也可以指定要分配给的master节点，命令为：</p>
-<blockquote><p>./redis-trib.rb add-node –slave –master-id master节点ID 新节点IP和端口号 随便一个已经在集群中的节点的IP和端口号</p>
-</blockquote>
+<figure class="highlight smali"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">.</span>/redis-trib.rb<span class="instruction"> add-node </span>--slave --master-id master节点ID 新节点IP和端口号 随便一个已经在集群中的节点的IP和端口号</span><br></pre></td></tr></table></figure>
 <p>还有一种做法，就是使用CLUSTER REPLICATE 命令。具体做法是，首先我们要访问到这个新的节点，然后执行命令：</p>
-<blockquote><p>cluster replicate master节点ID</p>
-</blockquote>
+<figure class="highlight mel"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">cluster</span> replicate master节点ID</span><br></pre></td></tr></table></figure>
 <p><strong>移除一个节点</strong></p>
 <p>如果我们希望移除一个slave节点，只需要执行如下命令：</p>
-<blockquote><p>./redis-trib del-node 随便一个已经在集群中的节点的IP和端口号 <code>希望删除的节点ID</code></p>
-</blockquote>
-<p>如果希望移除一个master节点会稍微复杂一些，首先我们要将该节点负责的哈希槽清空，即将它们迁移到其他节点，然后再行移除。还有一种做法就是通过人工的方式来制造失效备援，这样当这个master节点的slave节点被推举为新的master节点时，这个旧的master节点就可以被移除了。当然，这么做并不会在实际上减少master节点的数量。</p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./redis-trib del-node 随便一个已经在集群中的节点的<span class="literal">IP</span>和端口号 `希望删除的节点ID`</span><br></pre></td></tr></table></figure>
+<p>如果希望移除一个master节点会稍微复杂一些，首先我们要将该节点负责的哈希槽清空，即将它们迁移到其他节点，然后再行移除。还有一种做法就是通过人工的方式(<a href="http://redis.io/commands/cluster-failover" target="_blank" rel="external">CLUSTER FAILOVER</a>)来制造失效备援，这样当这个master节点的slave节点被推举为新的master节点时，这个旧的master节点就可以被移除了。当然，这么做并不会在实际上减少master节点的数量。</p>
 <p><strong>复制迁移</strong></p>
 <p>命令格式为：</p>
-<blockquote><p>CLUSTER REPLICATE master节点ID</p>
-</blockquote>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="title">CLUSTER</span> REPLICATE master节点ID</span><br></pre></td></tr></table></figure>
 <p>这个命令的作用其实就是切换一个slave节点的master节点。这个命令的优势在于，当我们配置的slave节点数比master数稍多时，当某个master节点的唯一的slave节点宕机了，通过该命令可以将一个多的slave节点分配给该节点，从而提高了整个集群的稳定性。</p>
 <p><strong>升级节点</strong></p>
 <p>升级一个slave节点是比较简单的，我们只需要将其停机，升级redis版本，然后再重启即可。然而升级一个master节点会稍显复杂，其思路主要就是通过人工出发失效备援，导致master节点和slave节点进行角色互换，升级完成之后再出发一次新的人工失效备援即可。</p>
@@ -141,6 +135,11 @@
 <p>mkdir cluster-test<br>cd cluster-test<br>mkdir 7000 7001 7002 7003 7004 7005</p>
 <p>给每个目录（7000到7005）分别创建redis.conf。redis.conf的基本格式如下：</p>
 <p>port 7000<br>cluster-enabled yes<br>cluster-config-file nodes.conf<br>cluster-node-timeout 5000<br>appendonly yes</p>
+<p>配置解释：</p>
+<ol>
+<li>cluster-config-file指定了redis集群的配置文件所在路径，不过该文件不需要我们人工进行修改，它会在集群简历之后自动创建并自动更新。</li>
+<li>appendonly，即Append-only file，是redis的一种实现持久化的方式。将其设为yes之后，任何对redis数据集的修改都会被记录到这个AOF文件中，以便在redis可能遇到故障需要重启时通过载入该文件来恢复到重启前的状态）</li>
+</ol>
 <p>注意每个redis.conf中的port都应该与自己对应的port相同。然后拷贝redis-server到cluster-test目录中，然后在终端打开6个tab，每个tab都分别cd到对应的目录中（如7000），然后执行命令：</p>
 <p>../redis-server ./redis.conf</p>
 <p>这样每个空的节点就都启动起来了。之后我们要做的就是将这些运行中的redis实例构建为一个集群，具体做法是执行如下命令：</p>
