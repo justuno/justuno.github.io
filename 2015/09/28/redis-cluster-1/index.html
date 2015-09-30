@@ -144,8 +144,14 @@
 <p>../redis-server ./redis.conf</p>
 <p>这样每个空的节点就都启动起来了。之后我们要做的就是将这些运行中的redis实例构建为一个集群，具体做法是执行如下命令：</p>
 <p>./redis-trib.rb create –replicas 1 127.0.0.1:7000 127.0.0.1:7001 \<br>127.0.0.1:7002 127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005</p>
+<p>如果你不做一些事先准备的话，上述命令应该是没法运行的。为了能够成功通过redis-trib.rb执行命令，你首先需要安装ruby。以ubuntu为例，命令是：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get <span class="operator"><span class="keyword">install</span> ruby-<span class="keyword">full</span></span><br><span class="line">sudo gem <span class="keyword">install</span> redis</span></span><br></pre></td></tr></table></figure>
+<p>另外，如果你要在多台机子上构建redis集群，那么上述的create命令中，节点的ip地址就不可以使用本地地址，而要使用每台机子的真实IP地址，如：</p>
+<p>./redis-trib.rb create –replicas 1 192.168.31.243:7000 192.168.31.153:7003 192.168.31.243:7001 192.168.31.153:7004 192.168.31.243:7002 192.168.31.153:7005</p>
 <p>注意这里的<strong>–replicas 1</strong>的意思是说为每个master节点分配一个slave节点。那么如果一切顺利的话，我们会在终端上看到如下所示的信息：</p>
 <p>[OK] All 16384 slots covered</p>
+<img src="/2015/09/28/redis-cluster-1/goujian_success.png" alt="构建成功" title="构建成功">
+<p>由上图我们可以看到，master节点对应的端口号为：7001，7000，7003，其余的为slave节点，正好是三对三。</p>
 <p><strong>create-cluster脚本搭建</strong></p>
 <p>显而易见通过这种方式来构建redis集群真的是太麻烦了，那么简单的方法就是通过这个create-cluster脚本来搭建。create-cluster脚本放在redis目录中的utils/create-cluster目录中。为了启动三个master节点和三个slave节点，我们只需要执行如下几条命令：</p>
 <p>create-cluster start<br>create-cluster create</p>
