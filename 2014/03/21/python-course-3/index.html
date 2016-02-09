@@ -14,7 +14,7 @@
 <meta property="og:description" content="今次的內容主要為format方法、函數、魔法參數、偏函數應用、面向對象編程、迭代器、新式類的高級特性和compile()等。原本預定要將生成器(yield)這部分的內容一併寫入，不過因為這部分內容難度較大，我覺得可能單獨寫成一篇文章比較好。另外，在今次的博文中，面向對象編程中的關於python的多重繼承機制，以及用戶如何自定義迭代器這兩個部分我會重點談一下。
 今次博文寫完之後，基本上我的關於《Py">
 <meta property="og:image" content="http://myblogpicture.qiniudn.com/5.jpg">
-<meta property="og:updated_time" content="2015-09-28T17:25:37.000Z">
+<meta property="og:updated_time" content="2016-02-09T14:23:46.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="《Python核心編程》筆記（三）">
 <meta name="twitter:description" content="今次的內容主要為format方法、函數、魔法參數、偏函數應用、面向對象編程、迭代器、新式類的高級特性和compile()等。原本預定要將生成器(yield)這部分的內容一併寫入，不過因為這部分內容難度較大，我覺得可能單獨寫成一篇文章比較好。另外，在今次的博文中，面向對象編程中的關於python的多重繼承機制，以及用戶如何自定義迭代器這兩個部分我會重點談一下。
@@ -193,7 +193,7 @@ ga('send', 'pageview');
 <h2 id="format方法">format方法</h2><p>format方法主要用於構造字符串，個人認為這個方法在需要格式化輸出一些信息的時候用的比較多。這部分內容並不難理解，直接上代碼即可明白。</p>
 <p>代碼示例：</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">age = <span class="number">25</span></span><br><span class="line">name = <span class="string">'Swaroop'</span></span><br><span class="line">print(<span class="string">'&#123;0&#125; is &#123;1&#125; years old'</span>.format(name,age))</span><br><span class="line">print(<span class="string">'Why is &#123;0&#125; playing with that python?'</span>.format(name))</span><br></pre></td></tr></table></figure>
-<p>輸出：<br><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Swaroop is 25 years old</span><br><span class="line">Why is Swaroop playing with that python?</span><br></pre></td></tr></table></figure></p>
+<p>輸出：<br><figure class="highlight applescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Swaroop <span class="keyword">is</span> <span class="number">25</span> years old</span><br><span class="line">Why <span class="keyword">is</span> Swaroop playing <span class="keyword">with</span> <span class="keyword">that</span> python?</span><br></pre></td></tr></table></figure></p>
 <p>你可以注意到變量值到字符串的轉變是由format方法自動完成的，這就方便了我們輸出字符串而不用去糾結那些%s,%d之類的東西。大括號中的數字表示format方法中的參數的位置，0表示第一個參數，1表示第二個參數，以此類推，然後你在前面的字符串中指定是要輸出哪個變量的值即可。當然了，你也可以將大括號中的數字省略，這樣就意味著format會按照其參數的順序來為字符串中的大括號進行依次賦值的工作。</p>
 <p>format方法的威力還不只如此，請閱讀下面的例子：</p>
 <p>代碼示例：</p>
@@ -255,7 +255,7 @@ ga('send', 'pageview');
 <p>代碼示例：</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">P</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">foo</span><span class="params">(self)</span>:</span></span><br><span class="line">        print(<span class="string">'Hi,I'</span>m P-foo())</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">C</span><span class="params">(P)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">foo</span><span class="params">(self)</span>:</span></span><br><span class="line">        super(C,self).foo()</span><br><span class="line">        print(<span class="string">'Hi,I'</span>m C-foo()) </span><br><span class="line">c = C()</span><br><span class="line">c.foo()</span><br></pre></td></tr></table></figure>
 <p>輸出：</p>
-<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Hi,I'm P-foo()</span><br><span class="line">Hi,I'm C-foo()</span><br></pre></td></tr></table></figure>
+<figure class="highlight gcode"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Hi,I<span class="string">'m P-foo()</span><br><span class="line">Hi,I'</span>m C-foo<span class="comment">()</span></span><br></pre></td></tr></table></figure>
 <p>關於super()，其實這一塊的水挺深的，我這裡只是簡單地做一個介紹，詳細地可以看這裡：<a href="http://blog.csdn.net/johnsonguo/article/details/585193" target="_blank" rel="external">關於python中的super()用法研究</a></p>
 </li>
 </ol>
@@ -278,7 +278,7 @@ ga('send', 'pageview');
 <p>代碼示例：</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MyIterator</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self,step)</span>:</span></span><br><span class="line">        self.step=step</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__next__</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">if</span> self.step==<span class="number">0</span>:</span><br><span class="line">            <span class="keyword">raise</span> StopIteration</span><br><span class="line">        self.step-=<span class="number">1</span></span><br><span class="line">        <span class="keyword">return</span> self.step</span><br><span class="line">    </span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__iter__</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">return</span> self</span><br><span class="line">    </span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> MyIterator(<span class="number">6</span>):</span><br><span class="line">    print(i)</span><br></pre></td></tr></table></figure>
 <p>輸出：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="prompt">&gt;&gt;&gt; </span>================================ RESTART ================================</span><br><span class="line"><span class="prompt">&gt;&gt;&gt; </span></span><br><span class="line"><span class="number">5</span></span><br><span class="line"><span class="number">4</span></span><br><span class="line"><span class="number">3</span></span><br><span class="line"><span class="number">2</span></span><br><span class="line"><span class="number">1</span></span><br><span class="line"><span class="number">0</span></span><br><span class="line">&gt;&gt;&gt;</span><br></pre></td></tr></table></figure>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">&gt;&gt;&gt; ================================ RESTART ================================</span><br><span class="line">&gt;&gt;&gt; </span><br><span class="line"><span class="number">5</span></span><br><span class="line"><span class="number">4</span></span><br><span class="line"><span class="number">3</span></span><br><span class="line"><span class="number">2</span></span><br><span class="line"><span class="number">1</span></span><br><span class="line"><span class="number">0</span></span><br><span class="line">&gt;&gt;&gt;</span><br></pre></td></tr></table></figure>
 <p>令這個迭代停止下來的方法就是捕獲StopIteration異常。</p>
 <hr>
 <h2 id="新式類的高級屬性">新式類的高級屬性</h2><p>簡單的模塊級私有化只需要在屬性或函數名前加一個單下劃線字符即可，這樣就可以防止它們被from mymodule import *這樣的語句加載。</p>
@@ -312,7 +312,7 @@ ga('send', 'pageview');
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2014/03/21/python-course-3/" data-id="cikeu09kk000e1w683pm8vz98" class="article-share-link">分享到</a>
+      <a data-url="http://yoursite.com/2014/03/21/python-course-3/" data-id="cikfi2e6f000ewk68xr8aamu7" class="article-share-link">分享到</a>
       
         <a href="http://yoursite.com/2014/03/21/python-course-3/#disqus_thread" class="article-comment-link">評論</a>
       
@@ -391,14 +391,14 @@ s.setAttribute('data-timestamp', +new Date());
               <a href="/2016/01/24/my-impressive-rock-album/" class="thumbnail">
   
     <span style="background-image:url(/2016/01/24/my-impressive-rock-album/sp.jpg
-)" alt="那些令我印象深刻的搖滾專輯" class="thumbnail-image"></span>
+)" alt="那些令我印象深刻的搖滾專輯（一）" class="thumbnail-image"></span>
   
 </a>
             </div>
             
             <div class="item-inner">
               <p class="item-category"><a class="article-category-link" href="/categories/個人心得/">個人心得</a></p>
-              <p class="item-title"><a href="/2016/01/24/my-impressive-rock-album/" class="title">那些令我印象深刻的搖滾專輯</a></p>
+              <p class="item-title"><a href="/2016/01/24/my-impressive-rock-album/" class="title">那些令我印象深刻的搖滾專輯（一）</a></p>
               <p class="item-date"><time datetime="2016-01-23T17:37:26.000Z" itemprop="datePublished">2016-01-24</time></p>
             </div>
           </li>
