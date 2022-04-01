@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>关于Redis Cluster，我所知道的事（一） - Justuno技術筆記</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="Justuno技術筆記"><meta name="msapplication-TileImage" content="/img/favicon.svg"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Justuno技術筆記"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="因9月30号要在组内做分享，这些天我一直在看Redis Cluster。老实说东西有点多，我一下子也看不完，因此打算先把现阶段看过的东西梳理一下。文章的结构如下：   Redis单机环境的安装与基本数据结构介绍  Redis Cluster介绍  Redis Cluster环境搭建  补遗   参考资料主要为Redis的两篇官方文档以及网上搜到的一些零碎的资料。因为是第一次接触这块内容，不敢保证"><meta property="og:type" content="blog"><meta property="og:title" content="关于Redis Cluster，我所知道的事（一）"><meta property="og:url" content="https://justuno.github.io/2015/09/28/2015-09-28-redis-cluster-1/"><meta property="og:site_name" content="Justuno技術筆記"><meta property="og:description" content="因9月30号要在组内做分享，这些天我一直在看Redis Cluster。老实说东西有点多，我一下子也看不完，因此打算先把现阶段看过的东西梳理一下。文章的结构如下：   Redis单机环境的安装与基本数据结构介绍  Redis Cluster介绍  Redis Cluster环境搭建  补遗   参考资料主要为Redis的两篇官方文档以及网上搜到的一些零碎的资料。因为是第一次接触这块内容，不敢保证"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="https://justuno.github.io/2015/09/28/2015-09-28-redis-cluster-1/jiagou.jpg"><meta property="og:image" content="https://justuno.github.io/2015/09/28/2015-09-28-redis-cluster-1/goujian_success.png"><meta property="article:published_time" content="2015-09-28T08:31:00.000Z"><meta property="article:modified_time" content="2015-09-30T08:46:43.000Z"><meta property="article:author" content="Justuno"><meta property="article:tag" content="redis"><meta property="article:tag" content="缓存"><meta property="article:tag" content="分布式"><meta property="twitter:card" content="summary"><meta property="twitter:image" content="/2015/09/28/2015-09-28-redis-cluster-1/jiagou.jpg"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"https://justuno.github.io/2015/09/28/2015-09-28-redis-cluster-1/"},"headline":"关于Redis Cluster，我所知道的事（一）","image":["https://justuno.github.io/2015/09/28/2015-09-28-redis-cluster-1/jiagou.jpg","https://justuno.github.io/2015/09/28/2015-09-28-redis-cluster-1/goujian_success.png"],"datePublished":"2015-09-28T08:31:00.000Z","dateModified":"2015-09-30T08:46:43.000Z","author":{"@type":"Person","name":"Justuno"},"publisher":{"@type":"Organization","name":"Justuno技術筆記","logo":{"@type":"ImageObject","url":{"text":"Justuno東拉西扯"}}},"description":"因9月30号要在组内做分享，这些天我一直在看Redis Cluster。老实说东西有点多，我一下子也看不完，因此打算先把现阶段看过的东西梳理一下。文章的结构如下：   Redis单机环境的安装与基本数据结构介绍  Redis Cluster介绍  Redis Cluster环境搭建  补遗   参考资料主要为Redis的两篇官方文档以及网上搜到的一些零碎的资料。因为是第一次接触这块内容，不敢保证"}</script><link rel="canonical" href="https://justuno.github.io/2015/09/28/2015-09-28-redis-cluster-1/"><link rel="icon" href="/img/favicon.svg"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@9.12.0/styles/atom-one-light.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><!--!--><!--!--><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cookieconsent@3.1.1/build/cookieconsent.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@1.10.0/dist/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/justifiedGallery@3.8.1/dist/css/justifiedGallery.min.css"><script src="https://www.googletagmanager.com/gtag/js?id=UA-49018948-1" async></script><script>window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+    
+        gtag('config', 'UA-49018948-1');</script><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdn.jsdelivr.net/npm/pace-js@1.2.4/pace.min.js"></script><!--!--><!--!--><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+          Array
+              .from(document.querySelectorAll('.tab-content'))
+              .forEach($tab => {
+                  $tab.classList.add('is-hidden');
+              });
+          Array
+              .from(document.querySelectorAll('.tabs li'))
+              .forEach($tab => {
+                  $tab.classList.remove('is-active');
+              });
+          const $activeTab = document.querySelector(location.hash);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+          const $tabMenu = document.querySelector(`a[href="${location.hash}"]`);
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 6.1.0"></head><body class="is-2-column"><nav class="navbar navbar-main"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/">Justuno東拉西扯</a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/categories">Categories</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/about">About</a></div><div class="navbar-end"><a class="navbar-item" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/ppoffice/hexo-theme-icarus"><i class="fab fa-github"></i></a><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a></div></div></div></nav><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-9-widescreen"><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item"><time dateTime="2015-09-28T08:31:00.000Z" title="9/28/2015, 4:31:00 PM">2015-09-28</time>发表</span><span class="level-item"><time dateTime="2015-09-30T08:46:43.000Z" title="9/30/2015, 4:46:43 PM">2015-09-30</time>更新</span><span class="level-item"><a class="link-muted" href="/categories/Redis/">Redis</a></span><span class="level-item">34 分钟读完 (大约5163个字)</span></div></div><h1 class="title is-3 is-size-4-mobile">关于Redis Cluster，我所知道的事（一）</h1><div class="content"><br />
+因9月30号要在组内做分享，这些天我一直在看Redis Cluster。老实说东西有点多，我一下子也看不完，因此打算先把现阶段看过的东西梳理一下。文章的结构如下：
+
+<ul>
+<li><p>Redis单机环境的安装与基本数据结构介绍</p>
+</li>
+<li><p>Redis Cluster介绍</p>
+</li>
+<li><p>Redis Cluster环境搭建</p>
+</li>
+<li><p>补遗</p>
+</li>
+</ul>
+<p>参考资料主要为Redis的两篇官方文档以及网上搜到的一些零碎的资料。因为是第一次接触这块内容，不敢保证所写内容都是正确的，如本文有误，烦请批评指正。</p>
+<span id="more"></span>
+
+<hr />
+## Redis单机环境的安装与基本数据结构介绍
+
+
+<p>Redis的安装是非常简单的，首先是下载官方的压缩包，解压，cd到对应的目录，然后执行make命令即可。然后我们需要启动redis-server，命令是：src&#x2F;redis-server<br>redis有个内置的client，通过它我们可以通过命令行的方式与redis-server进行交互，命令是：src&#x2F;redis-cli</p>
+<p>Redis的数据结构主要有以下几种：<strong>Strings，Lists，Sets，Hashes，Sorted sets和Bitmaps and HyperLogLogs</strong>。关于每种数据结构的介绍以及基本的使用方法可以参考这里：<a target="_blank" rel="noopener" href="http://redis.io/topics/data-types-intro">An introduction to Redis data types and abstractions</a> 因为这个比较简单，这里就不再赘述了。</p>
+<hr />
+## Redis Cluster介绍
+
+
+<p>Redis Cluster，又叫Redis集群，是一种可以令数据在多个Redis节点之间进行传输的设施，通常用作构建分布式缓存。Redis集群的优势主要集中在以下两个方面：</p>
+<ol>
+<li>自动分割数据到不同的节点</li>
+<li>部分节点宕机或不可达的情况下，能够继续处理命令</li>
+</ol>
+<p>需要注意的是，Redis集群并不支持处理多命令，当然这并不是绝对的，后面会对此进行进一步地介绍。</p>
+<p>每个节点都需要保持两个TCP端口处于打开状态，其中一个用于与客户端进行交互，另一个用于集群内部节点之间传输信息。这两个连接的端口号的差值默认为10000，例如第一个端口号为6379，则另外一个为16379。第二个端口用于集群链接（cluster bus），这是一种使用一个二进制协议来进行点对点（node-to-node）交互的通道。集群链接用户宕机检测，配置更新，失效备援（failover）认证等等。客户端永远都不需要试图通过集群链接端口进行交互，而应当通过普通的Redis命令端口。</p>
+<h3 id="哈希槽（hash-slots）"><a href="#哈希槽（hash-slots）" class="headerlink" title="哈希槽（hash slots）"></a>哈希槽（hash slots）</h3><p>哈希槽是redis集群中的一个重要的概念，它其实就是代表这一个keys的集合。redis集群共有16384个哈希槽，每个key通过CRC16校验然后对16384进行取模来决定该key应当被放到哪个槽中。集群中的每个节点负责一部分哈希槽，举例，比如现在集群中存在三个节点，则：</p>
+<ol>
+<li>节点 A 包含 0 到 5500号哈希槽</li>
+<li>节点 B 包含5501 到 11000 号哈希槽</li>
+<li>节点 C 包含11001 到 16384号哈希槽</li>
+</ol>
+<p>这种设计使得添加或者删除集群中的节点变得比较简单，比如说我想添加一个节点D，我只需要将A,B,C中的一部分槽移动到D即可；同样地，如果我想移除节点A，则只需要将A所负责的那一部分槽移动到B和C节点，然后将没有任何槽的A节点从集群中删除即可。</p>
+<p>需要说明的是，移动哈希槽并不需要停止服务，因此无论是添加、删除还是改变节点所包含的槽占总槽数的百分比，都是不需要停机的。</p>
+<h3 id="哈希标签（hash-tags）"><a href="#哈希标签（hash-tags）" class="headerlink" title="哈希标签（hash tags）"></a>哈希标签（hash tags）</h3><p>redis集群并不是在任何情况下都不支持执行多命令的。事实上如果我们希望做到这点，则首先需要引入一个哈希标签（hash tags）的概念，这个东西简单来说就是用大括号{}包裹起来的一个key的子串，比如说this{foo}key和another{foo}key，其中的{foo}就是一个哈希标签，因为这两个key拥有相同的哈希标签{foo}，因此可以保证他们会被放到相同的哈希槽中，从而使得它们可以被用于多命令执行中。</p>
+<p>这里插一句，之所以this{foo}key和another{foo}key会被放到同一个哈希槽中，是因为只有其中的{foo}会被哈希，因此它们的哈希值是相同的。另外需要说明的是，哈希标签中的大括号是不支持嵌套的，也就是说，redis集群只会将一个key中的第一次出现的{和第一次出现的}之间的内容进行哈希，而不会去管key中存在多少个大括号。另外，如果大括号之间没有字符，则对整个key进行哈希，这种将{}放到key中的做法通常用来保证整个key会被哈希。</p>
+<h3 id="主从模型（master-slave-model）"><a href="#主从模型（master-slave-model）" class="headerlink" title="主从模型（master-slave model）"></a>主从模型（master-slave model）</h3><p>这个非常好理解，我们假设我们的集群中存在三个master和三个slave，且master和slave一一对应，设为A,B,C和A1,B1,C1，则当B宕机时，集群便会推举B1成为新的master，使得整个集群得以继续正常运转。当然，当B和B1都处于宕机状态时，整个集群便可不用了。</p>
+<p>当然，每个master可以拥有多个slave，slave越多，集群的健壮性也就越大。另外，redis集群还拥有复制迁移（replicas migration）的特性，这个特性简单来说就是说，假设集群当前的slave节点数要稍稍多于master数，则当某个只拥有一个slave的master的slave宕机时，该特性可以保证一个slave会被迁移到这个master上，从而尽可能地保证了整个集群的可用性。</p>
+<h3 id="一致性保证（consistency-guarantees）"><a href="#一致性保证（consistency-guarantees）" class="headerlink" title="一致性保证（consistency guarantees）"></a>一致性保证（consistency guarantees）</h3><p>redis集群并不能保证数据的<a target="_blank" rel="noopener" href="http://www.zhihu.com/question/20113030">强一致性</a>（strong consistency），因此在一些特定的情况下，集群可能会丢失写操作。具体来说，由于集群采用的是异步备份（asynchronous replication），因此在一个写操作中，实际上发生了一下几个步骤：</p>
+<ol>
+<li>客户端向节点B写数据</li>
+<li>B节点返回OK给客户端</li>
+<li>B节点将写操作的结果传播（propagates）给它的suoyouslave节点</li>
+</ol>
+<p>我们可以看到B节点并没有在返回结果给客户端之前，等待它的slave节点对该操作结果进行确认。因此，假设B节点确认了客户端发过来的写操作，但是却在发给它的slave之前宕机了，它的其中一个slave将会被推举为一个新的master，使得这一写操作永远丢失。</p>
+<p>这听上去不够好，然而如果要等master节点的每一个slave都确实收到了写操作的结果之后再发OK给客户端的话，这显然会带来严重的性能问题。因此这事实上是一种对性能和一致性的一种权衡。</p>
+<p>为了尽可能地缓解这一问题，redis集群通过<a target="_blank" rel="noopener" href="http://redis.io/commands/wait">wait</a>命令实现同步写操作，这多少让写操作丢失出现的可能性降低了一点。</p>
+<p>还有一种可能导致写操作丢失的情况是集群出现了网络分区（network partition）即客户端和至少一个master节点被孤立于其他的多数节点。举个例子：假设集群包含 A 、 B 、 C 、 A1 、 B1 、 C1 六个节点， 其中 A 、B 、C 为主节点， A1 、B1 、C1 为A，B，C的从节点， 还有一个客户端 Z1。当发生网络分区之后，假设集群被分为两块，一块是A 、C 、A1 、B1 和 C1，另一块是B和Z1，则当分区的时间足够长时，B1将被推举为新的master，则Z1向B写入的数据将永久丢失。因为在等待一个制定时长的超时时间之后，（下面会提到的）当一个slave节点被推举为新的master节点时，处于少数分区中的master节点将停止接收写操作。</p>
+<p><strong>Redis-cluster 架构图</strong></p>
+<img src="/2015/09/28/2015-09-28-redis-cluster-1/jiagou.jpg" class="" title="Redis-cluster 架构图">
+
+<p>注意，在网络分区期间，Z1向B发送写命令的最大时间是有限制的，这一限制被称为节点超时。（node timeout）<br>节点超时的意思是说，当多数分区中的node已经推选出了新的master时，在少数分区中的master节点将停止接收写操作。节点超时还有一个作用就是当某个master节点处于宕机或不可达的状态时，等过了这个超时时间之后，这个master节点中的某个slave节点将作为新的master节点，来替换掉它。</p>
+<h3 id="CLUSTER-NODES命令"><a href="#CLUSTER-NODES命令" class="headerlink" title="CLUSTER NODES命令"></a>CLUSTER NODES命令</h3><p>CLUSTER NODES命令可用于监察集群中各个节点的相关信息，其信息格式为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;id&gt; &lt;ip:port&gt; &lt;flags&gt; &lt;master&gt; &lt;ping-sent&gt; &lt;pong-recv&gt; &lt;config-epoch&gt; &lt;link-state&gt; &lt;slot&gt; &lt;slot&gt; ... &lt;slot&gt;</span><br></pre></td></tr></table></figure>
+
+<p>下面分别来介绍每个参数的含义：</p>
+<ol>
+<li>节点ID，由40个随机生成的字符组成，并唯一地标识这个节点。每个节点都会记住其他节点的ID，即它们彼此之间是通过ID来进行辨识的，而不是通过IP和端口号。这也就是说，哪怕某个节点的IP和端口号发生了变化，其他节点也能够找到这个节点。</li>
+<li>IP和端口号</li>
+<li>标识（flags） 如master, slave, myself, fail, …</li>
+<li>如果该节点为slave，则显示其master的节点ID，否则显示为’-‘</li>
+<li>集群最近一次向节点发送 PING 命令之后， 过去了多长时间还没接到回复</li>
+<li>节点最近一次收到 PONG 回复的时间</li>
+<li>节点的配置纪元（Configuration epoch）即当前节点（若当前节点为slave，则为其master节点）的配置纪元。每遇到一次失效备援，一个新的，唯一的，单调性的配置纪元就会被创建。它主要用于当多个节点声称负责同一组哈希槽时，配置纪元高的节点将最终负责这一组哈希槽。（配置纪元其形式就是一个非负的数字）</li>
+<li>点对点链接的状态信息，可为connected或disconnected</li>
+<li>该节点所负责的哈希槽的范围</li>
+</ol>
+<h3 id="添加、删除、复制迁移、升级节点"><a href="#添加、删除、复制迁移、升级节点" class="headerlink" title="添加、删除、复制迁移、升级节点"></a>添加、删除、复制迁移、升级节点</h3><p><strong>添加一个master节点</strong></p>
+<p>首先我们要做的，就是添加一个新的空节点。（具体做法请参照下一节）当节点可以正常启动之后，我们通过redis-trib来添加这个节点到现有的集群中，其命令格式为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./redis-trib.rb add-node 新节点IP和端口号 随便一个已经在集群中的节点的IP和端口号</span><br></pre></td></tr></table></figure>
+
+<p>在这里redis-trib所做的工作其实并不多，它主要就是发送了一个CLUSTER MEET命令，这个命令的作用是让两个节点相互认识，从而将新的节点加入到集群中。</p>
+<p>不过此时新节点中还没有包含任何数据，因为它没有被分配哈希槽。分配给新节点一些哈希槽，其实也就是分片（reshard）的过程，其命令格式为：.&#x2F;redis-trib.rb reshard 随便一个已经在集群中的节点的IP和端口号。我们只需要指定集群中某一个节点的IP和端口号，redis-trib就能够自动寻找到集群中的其他节点。接下来，我们只需要按照命令行中的提示进行操作即可。具体的下一节有述。</p>
+<p><strong>添加一个slave节点</strong></p>
+<p>添加一个slave节点的命令是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./redis-trib.rb add-node --slave 新节点IP和端口号 随便一个已经在集群中的节点的IP和端口号</span><br></pre></td></tr></table></figure>
+
+<p>注意：这里并没有指明说我们要把这个slave节点分配到哪一个master节点，事实上，系统会自动挑选一个master节点，然后将这个slave节点分配给它。当然你也可以指定要分配给的master节点，命令为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./redis-trib.rb add-node --slave --master-id master节点ID 新节点IP和端口号 随便一个已经在集群中的节点的IP和端口号</span><br></pre></td></tr></table></figure>
+
+<p>还有一种做法，就是使用CLUSTER REPLICATE 命令。具体做法是，首先我们要访问到这个新的节点，然后执行命令：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cluster replicate master节点ID</span><br></pre></td></tr></table></figure>
+
+<p><strong>移除一个节点</strong></p>
+<p>如果我们希望移除一个slave节点，只需要执行如下命令：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./redis-trib del-node 随便一个已经在集群中的节点的IP和端口号 `希望删除的节点ID`</span><br></pre></td></tr></table></figure>
+
+<p>如果希望移除一个master节点会稍微复杂一些，首先我们要将该节点负责的哈希槽清空，即将它们迁移到其他节点，然后再行移除。还有一种做法就是通过人工的方式(<a target="_blank" rel="noopener" href="http://redis.io/commands/cluster-failover">CLUSTER FAILOVER</a>)来制造失效备援，这样当这个master节点的slave节点被推举为新的master节点时，这个旧的master节点就可以被移除了。当然，这么做并不会在实际上减少master节点的数量。</p>
+<p><strong>复制迁移</strong></p>
+<p>命令格式为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">CLUSTER REPLICATE master节点ID</span><br></pre></td></tr></table></figure>
+
+<p>这个命令的作用其实就是切换一个slave节点的master节点。这个命令的优势在于，当我们配置的slave节点数比master数稍多时，当某个master节点的唯一的slave节点宕机了，通过该命令可以将一个多的slave节点分配给该节点，从而提高了整个集群的稳定性。</p>
+<p><strong>升级节点</strong></p>
+<p>升级一个slave节点是比较简单的，我们只需要将其停机，升级redis版本，然后再重启即可。然而升级一个master节点会稍显复杂，其思路主要就是通过人工出发失效备援，导致master节点和slave节点进行角色互换，升级完成之后再出发一次新的人工失效备援即可。</p>
+<h2 id="Redis-Cluster环境搭建"><a href="#Redis-Cluster环境搭建" class="headerlink" title="Redis Cluster环境搭建"></a>Redis Cluster环境搭建</h2><p>搭建一个redis集群环境主要有两种方法：一种是人工操作的方法，另一种时通过执行create-cluster脚本的方法，下面我将分别介绍这两种方法。<br><strong>注：构建一个集群需要的节点数最少为三个master节点。</strong></p>
+<p><strong>人工搭建</strong></p>
+<p>方便起见，我们建立三个master节点和三个slave节点。需要执行的操作具体如下：</p>
+<p>mkdir cluster-test<br>cd cluster-test<br>mkdir 7000 7001 7002 7003 7004 7005</p>
+<p>给每个目录（7000到7005）分别创建redis.conf。redis.conf的基本格式如下：</p>
+<p>port 7000<br>cluster-enabled yes<br>cluster-config-file nodes.conf<br>cluster-node-timeout 5000<br>appendonly yes</p>
+<p>配置解释：</p>
+<ol>
+<li>cluster-config-file指定了redis集群的配置文件所在路径，不过该文件不需要我们人工进行修改，它会在集群简历之后自动创建并自动更新。</li>
+<li>appendonly，即Append-only file，是redis的一种实现持久化的方式。将其设为yes之后，任何对redis数据集的修改都会被记录到这个AOF文件中，以便在redis可能遇到故障需要重启时通过载入该文件来恢复到重启前的状态）</li>
+</ol>
+<p>注意每个redis.conf中的port都应该与自己对应的port相同。然后拷贝redis-server到cluster-test目录中，然后在终端打开6个tab，每个tab都分别cd到对应的目录中（如7000），然后执行命令：</p>
+<p>..&#x2F;redis-server .&#x2F;redis.conf</p>
+<p>这样每个空的节点就都启动起来了。之后我们要做的就是将这些运行中的redis实例构建为一个集群，具体做法是执行如下命令：</p>
+<p>.&#x2F;redis-trib.rb create –replicas 1 127.0.0.1:7000 127.0.0.1:7001 <br>127.0.0.1:7002 127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005</p>
+<p>如果你不做一些事先准备的话，上述命令应该是没法运行的。为了能够成功通过redis-trib.rb执行命令，你首先需要安装ruby。以ubuntu为例，命令是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install ruby-full</span><br><span class="line">sudo gem install redis</span><br></pre></td></tr></table></figure>
+
+<p>另外，如果你要在多台机子上构建redis集群，那么上述的create命令中，节点的ip地址就不可以使用本地地址，而要使用每台机子的真实IP地址，如：</p>
+<p>.&#x2F;redis-trib.rb create –replicas 1 192.168.31.243:7000 192.168.31.153:7003 192.168.31.243:7001 192.168.31.153:7004 192.168.31.243:7002 192.168.31.153:7005</p>
+<p>注意这里的**–replicas 1**的意思是说为每个master节点分配一个slave节点。那么如果一切顺利的话，我们会在终端上看到如下所示的信息：</p>
+<p>[OK] All 16384 slots covered</p>
+<img src="/2015/09/28/2015-09-28-redis-cluster-1/goujian_success.png" class="" title="构建成功">
+
+<p>由上图我们可以看到，master节点对应的端口号为：7001，7000，7003，其余的为slave节点，正好是三对三。</p>
+<p><strong>create-cluster脚本搭建</strong></p>
+<p>显而易见通过这种方式来构建redis集群真的是太麻烦了，那么简单的方法就是通过这个create-cluster脚本来搭建。create-cluster脚本放在redis目录中的utils&#x2F;create-cluster目录中。为了启动三个master节点和三个slave节点，我们只需要执行如下几条命令：</p>
+<p>create-cluster start<br>create-cluster create</p>
+<p>然后我们再执行上述的redis-trib命令即可。注意，通过这种方式默认创建的第一个节点的端口号为30001。</p>
+<p>如果要让整个集群停止运作，只需要执行：</p>
+<p>create-cluster stop</p>
+<p>你可能会问，如果我想要创建更多的master和slave节点要怎么办？很简单，修改create-cluster脚本即可。</p>
+<h2 id="补遗"><a href="#补遗" class="headerlink" title="补遗"></a>补遗</h2><ol>
+<li><p>集群中的节点并不具有代理功能，即如果收到的命令不属于自己需要处理的范围，该节点并不会将这个命令自动转发给正确的节点，而是会返回给客户端一个MOVED类型的错误。客户端需要能够处理这种错误，并将命令再次发给正确的节点，其实最好能将哈希槽和节点的对应关系缓存起来，这样执行命令的效率才会更高。</p>
+</li>
+<li><p>集群中的节点还具有记录key和value映射关系，集群状态，key到正确节点的映射关系，以及自动发现其他节点，识别工作不正常节点的功能。</p>
+</li>
+<li><p>节点之间使用Gossip 协议 来进行以下工作：</p>
+<ol>
+<li>传播（propagate）关于集群的信息，以此来发现新的节点。</li>
+<li>向其他节点发送 PING 数据包，以此来检查目标节点是否正常运作。（如正常会返回PONG）</li>
+<li>在特定事件发生时，发送集群信息。</li>
+</ol>
+</li>
+<li><p>一个节点可以改变它的IP和端口号，集群可以通过节点ID自动识别出其IP&#x2F;端口号的变化， 并将这一信息通过Gossip协议广播给其他节点知道。</p>
+</li>
+</ol>
+</div><div class="article-licensing box"><div class="licensing-title"><p>关于Redis Cluster，我所知道的事（一）</p><p><a href="https://justuno.github.io/2015/09/28/2015-09-28-redis-cluster-1/">https://justuno.github.io/2015/09/28/2015-09-28-redis-cluster-1/</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>作者</h6><p>Justuno</p></div></div><div class="level-item is-narrow"><div><h6>发布于</h6><p>2015-09-28</p></div></div><div class="level-item is-narrow"><div><h6>更新于</h6><p>2015-09-30</p></div></div><div class="level-item is-narrow"><div><h6>许可协议</h6><p><a class="icons" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="icon fab fa-creative-commons"></i></a><a class="icons" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="icon fab fa-creative-commons-by"></i></a><a class="icons" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="icon fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="article-tags is-size-7 mb-4"><span class="mr-2">#</span><a class="link-muted mr-2" rel="tag" href="/tags/redis/">redis</a><a class="link-muted mr-2" rel="tag" href="/tags/%E7%BC%93%E5%AD%98/">缓存</a><a class="link-muted mr-2" rel="tag" href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/">分布式</a></div><div class="a2a_kit a2a_kit_size_32 a2a_default_style"><a class="a2a_dd" target="_blank" rel="noopener" href="https://www.addtoany.com/share"></a><a class="a2a_button_facebook"></a><a class="a2a_button_twitter"></a><a class="a2a_button_telegram"></a><a class="a2a_button_whatsapp"></a><a class="a2a_button_reddit"></a></div><script src="https://static.addtoany.com/menu/page.js" defer></script></article></div><!--!--><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/2016/01/24/2016-01-24-my-impressive-rock-album/"><i class="level-item fas fa-chevron-left"></i><span class="level-item">那些令我印象深刻的搖滾專輯（一）</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/2014/03/26/answer1/"><span class="level-item">我在知乎上的長篇回答</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><div class="card"><div class="card-content"><h3 class="title is-5">评论</h3><div id="disqus_thread"><noscript>Please enable JavaScript to view the <a target="_blank" rel="noopener" href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript></div><script>var disqus_config = function () {
+            this.page.url = 'https://justuno.github.io/2015/09/28/2015-09-28-redis-cluster-1/';
+            this.page.identifier = '2015/09/28/2015-09-28-redis-cluster-1/';
+        };
+        (function() {
+            var d = document, s = d.createElement('script');  
+            s.src = '//' + 'justunolyd' + '.disqus.com/embed.js';
+            s.setAttribute('data-timestamp', +new Date());
+            (d.head || d.body).appendChild(s);
+        })();</script></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar" src="/img/avatar.jpeg" alt="JustUno"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">JustUno</p><p class="is-size-6 is-block">Java Developer</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>Shenzhen, China</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives"><p class="title">9</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories"><p class="title">5</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags"><p class="title">13</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/justuno" target="_blank" rel="noopener">关注我</a></div><div class="level is-mobile is-multiline"><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Github" href="https://github.com/justuno"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Facebook" href="https://www.facebook.com/justuno2008"><i class="fab fa-facebook"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Twitter" href="https://twitter.com/justuno2008"><i class="fab fa-twitter"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="Dribbble" href="https://dribbble.com"><i class="fab fa-dribbble"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="noopener" title="RSS" href="/"><i class="fas fa-rss"></i></a></div></div></div><!--!--><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">链接</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li><li><a class="level is-mobile" href="https://bulma.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Bulma</span></span><span class="level-right"><span class="level-item tag">bulma.io</span></span></a></li></ul></div></div></div><div class="card widget" data-type="categories"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile" href="/categories/Python/"><span class="level-start"><span class="level-item">Python</span></span><span class="level-end"><span class="level-item tag">3</span></span></a></li><li><a class="level is-mobile" href="/categories/Redis/"><span class="level-start"><span class="level-item">Redis</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile" href="/categories/%E5%80%8B%E4%BA%BA%E5%BF%83%E5%BE%97/"><span class="level-start"><span class="level-item">個人心得</span></span><span class="level-end"><span class="level-item tag">3</span></span></a></li><li><a class="level is-mobile" href="/categories/%E6%82%BC%E6%96%87/"><span class="level-start"><span class="level-item">悼文</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile" href="/categories/%E7%9F%A5%E4%B9%8E/"><span class="level-start"><span class="level-item">知乎</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></div></div></div><div class="card widget" data-type="recent-posts"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2022-03-29T21:47:56.000Z">2022-03-30</time></p><p class="title"><a href="/2022/03/30/ji-nian-wo-de-laolao/">别梦依稀咒逝川，茕茕尤作痛心人──关于姥姥的回忆</a></p><p class="categories"><a href="/categories/%E6%82%BC%E6%96%87/">悼文</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2016-02-21T15:45:04.000Z">2016-02-21</time></p><p class="title"><a href="/2016/02/21/2016-02-21-yun-zhi-bi-duan/">新海誠 -《雲之彼端》：宏大背景下的蒼白敘事</a></p><p class="categories"><a href="/categories/%E5%80%8B%E4%BA%BA%E5%BF%83%E5%BE%97/">個人心得</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2016-01-23T17:37:26.000Z">2016-01-24</time></p><p class="title"><a href="/2016/01/24/2016-01-24-my-impressive-rock-album/">那些令我印象深刻的搖滾專輯（一）</a></p><p class="categories"><a href="/categories/%E5%80%8B%E4%BA%BA%E5%BF%83%E5%BE%97/">個人心得</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2015-09-28T08:31:00.000Z">2015-09-28</time></p><p class="title"><a href="/2015/09/28/2015-09-28-redis-cluster-1/">关于Redis Cluster，我所知道的事（一）</a></p><p class="categories"><a href="/categories/Redis/">Redis</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2014-03-26T09:03:58.000Z">2014-03-26</time></p><p class="title"><a href="/2014/03/26/answer1/">我在知乎上的長篇回答</a></p><p class="categories"><a href="/categories/%E7%9F%A5%E4%B9%8E/">知乎</a></p></div></article></div></div><div class="card widget" data-type="archives"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile" href="/archives/2022/03/"><span class="level-start"><span class="level-item">三月 2022</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile" href="/archives/2016/02/"><span class="level-start"><span class="level-item">二月 2016</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile" href="/archives/2016/01/"><span class="level-start"><span class="level-item">一月 2016</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile" href="/archives/2015/09/"><span class="level-start"><span class="level-item">九月 2015</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile" href="/archives/2014/03/"><span class="level-start"><span class="level-item">三月 2014</span></span><span class="level-end"><span class="level-item tag">5</span></span></a></li></ul></div></div></div><div class="card widget" data-type="tags"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/Python/"><span class="tag">Python</span><span class="tag">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/redis/"><span class="tag">redis</span><span class="tag">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/"><span class="tag">分布式</span><span class="tag">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E5%8B%95%E6%BC%AB/"><span class="tag">動漫</span><span class="tag">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E5%9B%9E%E7%AD%94/"><span class="tag">回答</span><span class="tag">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E5%BF%83%E5%BE%97/"><span class="tag">心得</span><span class="tag">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E6%82%BC%E6%96%87/"><span class="tag">悼文</span><span class="tag">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E6%90%96%E6%BB%BE/"><span class="tag">搖滾</span><span class="tag">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E6%95%99%E7%A8%8B/"><span class="tag">教程</span><span class="tag">3</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E7%9F%A5%E4%B9%8E/"><span class="tag">知乎</span><span class="tag">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E7%BC%93%E5%AD%98/"><span class="tag">缓存</span><span class="tag">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E8%BF%BD%E5%BF%86/"><span class="tag">追忆</span><span class="tag">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/%E9%9B%9C%E6%96%87/"><span class="tag">雜文</span><span class="tag">3</span></a></div></div></div></div></div><div class="card widget" data-type="subscribe-email"><div class="card-content"><div class="menu"><h3 class="menu-label">订阅更新</h3><form action="https://feedburner.google.com/fb/a/mailverify" method="post" target="popupwindow" onsubmit="window.open(&#039;https://feedburner.google.com/fb/a/mailverify?uri=&#039;,&#039;popupwindow&#039;,&#039;scrollbars=yes,width=550,height=520&#039;);return true"><input type="hidden" value="" name="uri"><input type="hidden" name="loc" value="en_US"><div class="field has-addons"><div class="control has-icons-left is-expanded"><input class="input" name="email" type="email" placeholder="Email"><span class="icon is-small is-left"><i class="fas fa-envelope"></i></span></div><div class="control"><input class="button" type="submit" value="订阅"></div></div></form></div></div></div></div><!--!--></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/">Justuno東拉西扯</a><p class="is-size-7"><span>&copy; 2022 Justuno</span>  Powered by <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank" rel="noopener">Icarus</a></p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/ppoffice/hexo-theme-icarus"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/min/moment-with-locales.min.js"></script><script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.4/dist/clipboard.min.js" defer></script><script>moment.locale("zh-CN");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdn.jsdelivr.net/npm/cookieconsent@3.1.1/build/cookieconsent.min.js" defer></script><script>window.addEventListener("load", () => {
+      window.cookieconsent.initialise({
+        type: "info",
+        theme: "edgeless",
+        static: false,
+        position: "bottom-left",
+        content: {
+          message: "此网站使用Cookie来改善您的体验。",
+          dismiss: "知道了！",
+          allow: "允许使用Cookie",
+          deny: "拒绝",
+          link: "了解更多",
+          policy: "Cookie政策",
+          href: "https://www.cookiesandyou.com/",
+        },
+        palette: {
+          popup: {
+            background: "#edeff5",
+            text: "#838391"
+          },
+          button: {
+            background: "#4b81e8"
+          },
+        },
+      });
+    });</script><script src="https://cdn.jsdelivr.net/npm/lightgallery@1.10.0/dist/js/lightgallery.min.js" defer></script><script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.8.1/dist/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
+            if (typeof $.fn.lightGallery === 'function') {
+                $('.article').lightGallery({ selector: '.gallery-item' });
+            }
+            if (typeof $.fn.justifiedGallery === 'function') {
+                if ($('.justified-gallery > p > .gallery-item').length) {
+                    $('.justified-gallery > p > .gallery-item').unwrap();
+                }
+                $('.justified-gallery').justifiedGallery();
+            }
+        });</script><!--!--><!--!--><!--!--><!--!--><!--!--><script src="/js/main.js" defer></script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script src="/js/insight.js" defer></script><script>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>
